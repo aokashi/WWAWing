@@ -228,12 +228,14 @@ module wwa_picture {
          * @param soundNumber サウンド番号です。0の場合は鳴りません。
          * @param waitTime 待ち時間です。10で1秒になります。
          * @param message ピクチャを表示するパーツのメッセージです。各行を配列にした形で設定します。
+         * @param autoStart インスタンス作成時にピクチャを自動で開始するか
          */
         constructor(
         parent: PictureData,
         imgCropX: number, imgCropY: number,
         secondImgCropX: number, secondImgCropY: number,
-        soundNumber: number, waitTime: number, message: Array<string>) {
+        soundNumber: number, waitTime: number,
+        message: Array<string>, autoStart: boolean = false) {
             this._parent = parent;
             this._imageCrop = new wwa_data.Coord(imgCropX, imgCropY);
             this._secondImageCrop = new wwa_data.Coord(secondImgCropX, secondImgCropY);
@@ -288,6 +290,10 @@ module wwa_picture {
 
             for (var accelType in this._accelProperties) {
                 this._anims[accelType].setAccel(this._accelProperties[accelType]);
+            }
+
+            if (autoStart) {
+                this.start();
             }
         }
         /** プロパティを表記した1行からプロパティを生成します。
@@ -688,36 +694,46 @@ module wwa_picture {
         }
     }
     class Next implements Property {
-        private _nextParts: number;
-        private _partsType: wwa_data.PartsType;
+        private _isSet: boolean;
+        private _nextPictures: [{
+            number: wwa_data.RelativeValue,
+            id: wwa_data.RelativeValue
+        }];
         constructor() {
-            this._nextParts = 0;
-            this._partsType = wwa_data.PartsType.OBJECT;
+            this._isSet = false;
         }
         public setProperty(value) {
-            this._nextParts = Util.getIntValue(value[0]);
-            var isMapParts = Util.getBoolValue(value[1], false);
-            this._partsType = isMapParts ? wwa_data.PartsType.MAP : wwa_data.PartsType.OBJECT;
+            this._isSet = true;
+            for (let index = 0; index < value.length; index += 2) {
+                this._nextPictures.push({
+                    number: Util.getRelativeValue(value[index]),
+                    id: Util.getRelativeValue(value[index + 1], "+0")
+                });
+            }
         }
         public appearParts(wwa: wwa_main.WWA) {
-            wwa.appearPartsByDirection(0, this._nextParts, this._partsType);
-        }
-        get nextParts(): number {
-            return this._nextParts;
-        }
-        get partsType(): wwa_data.PartsType {
-            return this._partsType;
+            // TODO: まだ実装してないです。
         }
         get isSet(): boolean {
-            return this._nextParts !== 0;
+            return this._isSet;
         }
     }
-    class Wait extends wwa_data.NonFinishTimer implements Property {
+    class Wait extends wwa_data.Timer implements Property {
+        private _appearParts: {
+            number: number
+            x: wwa_data.RelativeValueWithPlayer,
+            y: wwa_data.RelativeValueWithPlayer,
+            type: wwa_data.PartsType
+        }
         constructor(timeoutCallback: () => void) {
             super(0, () => {}, timeoutCallback);
         }
         public setProperty(value) {
             this.setTime(Util.getIntValue(value[0]));
+            this._appearParts.number = Util.getIntValue(value[1], 0);
+            this._appearParts.x = Util.getRelativeValueWithPlayer(value[2], "+0");
+            this._appearParts.y = Util.getRelativeValueWithPlayer(value[3], "+0");
+            this._appearParts.type = Util.getPartsTypeValue(value[4], wwa_data.PartsType.OBJECT);
         }
     }
     class Zoom extends CoordProperty implements Animation {
@@ -917,10 +933,28 @@ module wwa_picture {
             }
             return false;
         }
+        public static checkFallbackString(value: string, fallback: string): boolean {
+            if (value === void 0) {
+                if (fallback === void 0) {
+                    throw new Error("値が正しく定義されていません。");
+                }
+                return true;
+            }
+            return false;
+        }
         public static getBoolValue(str: string, fallback: boolean = void 0): boolean {
             var fallbackNumber = Util.parseIntFromBool(fallback);
             var value = Util.getIntValue(str, fallbackNumber);
             return Util.parseBool(value);
+        }
+        public static getPartsTypeValue(str: string, fallback: wwa_data.PartsType = void 0): wwa_data.PartsType {
+            // TODO: フォールバック処理をしっかりする
+            var isMap = Util.getBoolValue(str, fallback === wwa_data.PartsType.MAP ? true : false);
+            if (isMap) {
+                return wwa_data.PartsType.MAP;
+            } else {
+                return wwa_data.PartsType.OBJECT;
+            }
         }
         /**
          * 数字の値を引数に、bool値を返します
@@ -945,14 +979,23 @@ module wwa_picture {
             }
         }
         public static getStringValue(str: string, fallback: string = void 0): string {
-            if (str === void 0) {
-                if (fallback === void 0) {
-                    throw new Error("値が正しく定義されていません。");
-                }
+            if (Util.checkFallbackString(str, fallback)) {
                 return fallback;
             }
             var trimmedStr = Util.trimString(str, '"');
             return trimmedStr;
+        }
+        public static getRelativeValue(str: string, fallback: string = void 0): wwa_data.RelativeValue {
+            if (Util.checkFallbackString(str, fallback)) {
+                return new wwa_data.RelativeValue(fallback);
+            }
+            return new wwa_data.RelativeValue(str);
+        }
+        public static getRelativeValueWithPlayer(str: string, fallback: string = void 0): wwa_data.RelativeValueWithPlayer {
+            if (Util.checkFallbackString(str, fallback)) {
+                return new wwa_data.RelativeValueWithPlayer(fallback);
+            }
+            return new wwa_data.RelativeValueWithPlayer(str);
         }
         /**
          * 文字列の両端の記号を切り取ります

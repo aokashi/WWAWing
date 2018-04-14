@@ -276,6 +276,59 @@ module wwa_data {
 
     }
 
+    export class RelativeValue {
+        private _value: number;
+        private _isRelative: boolean;
+        /**
+         * 「相対値」です。+ や - の指定と、p によるプレイヤー起点の指定が可能です。
+         * @param str 
+         */
+        constructor(str: string) {
+            let prefix = str.charAt(0);
+            switch(prefix) {
+                case '+':
+                    this._isRelative = true;
+                    this._value = RelativeValue.popPrefix(str);
+                    break;
+                case '-':
+                    this._isRelative = true;
+                    this._value = -RelativeValue.popPrefix(str);
+                    break;
+                default:
+                    this._isRelative = false;
+                    this._value = parseInt(str);
+            }
+        }
+
+        get value(): number {
+            return this._value;
+        }
+
+        get isRelative(): boolean {
+            return this._isRelative;
+        }
+        
+        public static popPrefix(str: string): number {
+            return parseInt(str.substr(1));
+        }
+    }
+
+    export class RelativeValueWithPlayer extends RelativeValue {
+        private _isPlayer: boolean;
+        constructor(str: string) {
+            super(str);
+            if (str === 'p') {
+                this._isPlayer = true;
+            } else {
+                this._isPlayer = false;
+            }
+        }
+
+        get isPlayer(): boolean {
+            return this._isPlayer;
+        }
+    }
+
     export class Face {
         public destPos: Coord;
         public srcPos: Coord;

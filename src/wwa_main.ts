@@ -3713,8 +3713,9 @@ module wwa_main {
          * @param partsID ピクチャのプロパティが記述されているパーツ番号
          * @param id ピクチャを表示する領域のID
          * @param autoStart 作成時と同時にパーツのタイマー処理を走らせるか
+         * @returns 作成したピクチャのインスタンス
          */
-        public createPicture(partsID: number, id: number, autoStart: boolean = false) {
+        public createPicture(partsID: number, id: number, autoStart: boolean = false): wwa_picture.Picture {
             var mesID = this.getObjectAttributeById(partsID, Consts.ATR_STRING);
             var message = this.getMessageById(mesID);
             var lines = message
@@ -3734,14 +3735,13 @@ module wwa_main {
                 this.getObjectCropYById(partsID, true) / Consts.CHIP_SIZE,
                 this.getObjectAttributeById(partsID, Consts.ATR_SOUND),
                 this.getObjectAttributeById(partsID, Consts.ATR_NUMBER),
-                lines
+                lines,
+                autoStart
             );
             this._pictureData.setPicture(picture, id);
             this._wwaData.pictureID[id] = partsID;
             console.log(picture);
-            if (autoStart) {
-                picture.start();
-            }
+            return picture;
         }
 
         public startPictureWaiting(picture: wwa_picture.Picture) {
