@@ -86,7 +86,6 @@ module wwa_message {
 
             } catch (e) {
                 // デベロッパーモードならエラーを吐くとかしたいね
-                throw new Error(e.message);
             }
         }
 
@@ -447,7 +446,7 @@ module wwa_message {
             if (partsID === 0) {
                 this._wwa.removePicture(id);
             } else {
-                this._wwa.createPicture(partsID, id);
+                this._wwa.createPicture(partsID, id, this._triggerPartsID, this._triggerPartsType, this._triggerPartsPosition);
             }
         }
 

@@ -1621,7 +1621,12 @@ module wwa_main {
                 if (picture.isTimeout) {
                     if (picture.nextPictureNumber !== 0) {
                         this._wwaData.pictureID[id] = picture.nextPictureNumber;
-                        this.createPicture(picture.nextPictureNumber, id, true);
+                        let nextPictureInfo = this._getPictureDataFromWWAData(id);
+                        this.createPicture(nextPictureInfo.partsID, id,
+                            nextPictureInfo.triggerPartsID,
+                            nextPictureInfo.triggerPartsType,
+                            nextPictureInfo.triggerPartsPos,
+                            true);
                     } else {
                         this.removePicture(id);
                     }
@@ -2899,7 +2904,12 @@ module wwa_main {
             if (!restart) {
                 this._wwaData.pictureID.forEach((partsID, id) => {
                     if (partsID != 0) {
-                        this.createPicture(partsID, id, true);
+                        let partsType = this._wwaData.pictureTriggerPartsType ? wwa_data.PartsType.MAP : wwa_data.PartsType.OBJECT;
+                        this.createPicture(partsID, id,
+                            this._wwaData.pictureTriggerPartsID[id],
+                            partsType,
+                            new wwa_data.Coord(this._wwaData.pictureTriggerPartsPosX[id], this._wwaData.pictureTriggerPartsPosY[id]),
+                            true);
                     }
                 }, this);
             }
@@ -3712,10 +3722,16 @@ module wwa_main {
          * ピクチャを作成します。
          * @param partsID ピクチャのプロパティが記述されているパーツ番号
          * @param id ピクチャを表示する領域のID
+         * @param triggerPartsID 呼び出し元のパーツ番号
+         * @param triggerPartsType 呼び出し元のパーツ種類
+         * @param triggerPartsPos 呼び出し元のパーツ位置
          * @param autoStart 作成時と同時にパーツのタイマー処理を走らせるか
          * @returns 作成したピクチャのインスタンス
          */
-        public createPicture(partsID: number, id: number, autoStart: boolean = false): wwa_picture.Picture {
+        public createPicture(
+        partsID: number, id: number,
+        triggerPartsID: number, triggerPartsType: wwa_data.PartsType, triggerPartsPos: wwa_data.Coord,
+        autoStart: boolean = false): wwa_picture.Picture {
             var mesID = this.getObjectAttributeById(partsID, Consts.ATR_STRING);
             var message = this.getMessageById(mesID);
             var lines = message
@@ -3729,6 +3745,7 @@ module wwa_main {
             }
             var picture = new wwa_picture.Picture(
                 this._pictureData,
+                { ID: triggerPartsID, type: triggerPartsType, pos: triggerPartsPos },
                 this.getObjectCropXById(partsID) / Consts.CHIP_SIZE,
                 this.getObjectCropYById(partsID) / Consts.CHIP_SIZE,
                 this.getObjectCropXById(partsID, true) / Consts.CHIP_SIZE,
@@ -3740,8 +3757,29 @@ module wwa_main {
             );
             this._pictureData.setPicture(picture, id);
             this._wwaData.pictureID[id] = partsID;
+            this._wwaData.pictureTriggerPartsID[id] = triggerPartsID;
+            this._wwaData.pictureTriggerPartsType[id] = triggerPartsType === wwa_data.PartsType.MAP ? true : false;
+            this._wwaData.pictureTriggerPartsPosX[id] = triggerPartsPos.x;
+            this._wwaData.pictureTriggerPartsPosY[id] = triggerPartsPos.y;
             console.log(picture);
             return picture;
+        }
+
+        // TODO: 内部のwwaDataを引っ張ってピクチャを作るメソッドを考える
+        private _getPictureDataFromWWAData(id: number): {
+            partsID: number,
+            triggerPartsID: number, 
+            triggerPartsType: wwa_data.PartsType,
+            triggerPartsPos: wwa_data.Coord
+        } {
+            let triggerPartsPos = new wwa_data.Coord(this._wwaData.pictureTriggerPartsPosX[id], this._wwaData.pictureTriggerPartsPosY[id]);
+            let triggerPartsType = this._wwaData.pictureTriggerPartsType ? wwa_data.PartsType.MAP : wwa_data.PartsType.OBJECT;
+            return {
+                partsID: this._wwaData.pictureID[id],
+                triggerPartsID: this._wwaData.pictureTriggerPartsID[id],
+                triggerPartsPos: triggerPartsPos,
+                triggerPartsType: triggerPartsType
+            }
         }
 
         public startPictureWaiting(picture: wwa_picture.Picture) {

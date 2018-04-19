@@ -192,6 +192,11 @@ module wwa_picture {
         public static isPrimaryAnimationTime: boolean = true;
         private _parent: PictureData;
         // 初期設定
+        private _triggerParts: {
+            ID: number,
+            type: wwa_data.PartsType,
+            pos: wwa_data.Coord
+        };
         private _imageCrop: wwa_data.Coord;
         private _secondImageCrop: wwa_data.Coord;
         private _soundNumber: number;
@@ -221,6 +226,7 @@ module wwa_picture {
         private _animationIntervalID: number;
         /**
          * @param parent ピクチャを格納するピクチャデータ
+         * @param triggerParts 呼び出し元のパーツ(番号と種類、位置)
          * @param imgCropX イメージの参照先のX座標です。
          * @param imgCropY イメージの参照先のY座標です。
          * @param secondImgCropX イメージの第2参照先のX座標で、アニメーションが設定されている場合に使います。
@@ -231,12 +237,13 @@ module wwa_picture {
          * @param autoStart インスタンス作成時にピクチャを自動で開始するか
          */
         constructor(
-        parent: PictureData,
+        parent: PictureData, triggerParts: { ID: number, type: wwa_data.PartsType, pos: wwa_data.Coord },
         imgCropX: number, imgCropY: number,
         secondImgCropX: number, secondImgCropY: number,
         soundNumber: number, waitTime: number,
         message: Array<string>, autoStart: boolean = false) {
             this._parent = parent;
+            this._triggerParts = triggerParts;
             this._imageCrop = new wwa_data.Coord(imgCropX, imgCropY);
             this._secondImageCrop = new wwa_data.Coord(secondImgCropX, secondImgCropY);
             this._soundNumber = soundNumber;

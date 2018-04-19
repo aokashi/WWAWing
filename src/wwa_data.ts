@@ -277,13 +277,14 @@ module wwa_data {
     }
 
     export class RelativeValue {
-        private _value: number;
+        protected _value: number;
         private _isRelative: boolean;
         /**
          * 「相対値」です。+ や - の指定と、p によるプレイヤー起点の指定が可能です。
-         * @param str 
+         * @param str 文字列
+         * @param doCheckNumber 不正な文字列化を確認するか(継承する場合はfalseを指定します)
          */
-        constructor(str: string) {
+        constructor(str: string, doCheckNumber: boolean = true) {
             let prefix = str.charAt(0);
             switch(prefix) {
                 case '+':
@@ -297,6 +298,15 @@ module wwa_data {
                 default:
                     this._isRelative = false;
                     this._value = parseInt(str);
+                    if (doCheckNumber) {
+                        this.checkNumber();
+                    }
+            }
+        }
+
+        public checkNumber() {
+            if (isNaN(this._value)) {
+                throw new Error("不正な文字列です!!");
             }
         }
 
@@ -315,12 +325,17 @@ module wwa_data {
 
     export class RelativeValueWithPlayer extends RelativeValue {
         private _isPlayer: boolean;
+        /**
+         * プレイヤー指定が可能な相対値です。
+         * @param str 
+         */
         constructor(str: string) {
-            super(str);
+            super(str, false);
             if (str === 'p') {
                 this._isPlayer = true;
             } else {
                 this._isPlayer = false;
+                this.checkNumber();
             }
         }
 
@@ -1103,6 +1118,10 @@ module wwa_data {
         checkString: string = void 0;
 
         pictureID: number[] = void 0;
+        pictureTriggerPartsID: number[] = void 0;
+        pictureTriggerPartsPosX: number[] = void 0;
+        pictureTriggerPartsPosY: number[] = void 0;
+        pictureTriggerPartsType: boolean[] = void 0;
 
         constructor() { }
     }
