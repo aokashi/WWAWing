@@ -197,6 +197,7 @@ module wwa_picture {
             type: wwa_data.PartsType,
             pos: wwa_data.Coord
         };
+        private _pictureParts: PicturePointer;
         private _imageCrop: wwa_data.Coord;
         private _secondImageCrop: wwa_data.Coord;
         private _soundNumber: number;
@@ -226,6 +227,7 @@ module wwa_picture {
         private _animationIntervalID: number;
         /**
          * @param parent ピクチャを格納するピクチャデータ
+         * @param pictureParts ピクチャのプロパティが格納されているパーツ(番号とID)
          * @param triggerParts 呼び出し元のパーツ(番号と種類、位置)
          * @param imgCropX イメージの参照先のX座標です。
          * @param imgCropY イメージの参照先のY座標です。
@@ -237,12 +239,14 @@ module wwa_picture {
          * @param autoStart インスタンス作成時にピクチャを自動で開始するか
          */
         constructor(
-        parent: PictureData, triggerParts: { ID: number, type: wwa_data.PartsType, pos: wwa_data.Coord },
+        parent: PictureData,
+        pictureParts: PicturePointer, triggerParts: { ID: number, type: wwa_data.PartsType, pos: wwa_data.Coord },
         imgCropX: number, imgCropY: number,
         secondImgCropX: number, secondImgCropY: number,
         soundNumber: number, waitTime: number,
         message: Array<string>, autoStart: boolean = false) {
             this._parent = parent;
+            this._pictureParts = pictureParts;
             this._triggerParts = triggerParts;
             this._imageCrop = new wwa_data.Coord(imgCropX, imgCropY);
             this._secondImageCrop = new wwa_data.Coord(secondImgCropX, secondImgCropY);
@@ -252,13 +256,11 @@ module wwa_picture {
                 time: new Time(waitTime, () => {
                     this._isVisible = true;
                     this._properties.time_anim.start();
+                    this._properties.wait.start();
                     this._parent.parentWWA.playSound(this._soundNumber);
                 }, () => {
                     this._isVisible = false;
                     this._isTimeout = true;
-                    if (this._properties.next.isSet) {
-                        this._properties.next.appearParts(this._parent.parentWWA);
-                    }
                 }),
                 time_anim: new AnimationTimer(() => {
                     this.startAnimation();
@@ -267,8 +269,11 @@ module wwa_picture {
                 }),
                 wait: new Wait(() => {
                     this._parent.parentWWA.stopPictureWaiting(this);
+                    if (this._properties.wait.isSetPutParts) {
+                        this._properties.wait.appearParts(this._parent.parentWWA, triggerParts);
+                    }
                 }),
-                next: new Next(),
+                next: new Next(pictureParts.number, pictureParts.id),
                 size: new CoordProperty(Consts.CHIP_SIZE, Consts.CHIP_SIZE),
                 clip: new CoordProperty(1, 1),
                 angle: new Angle(),
@@ -377,9 +382,6 @@ module wwa_picture {
          * ピクチャのタイマーを開始します。
          */
         public start() {
-            if (this.isSetNextParts) {
-                this._parent.parentWWA.startPictureWaiting(this);
-            }
             this._properties.time.start();
             if (this.isVisible) {
                 this._properties.time_anim.start();
@@ -474,11 +476,14 @@ module wwa_picture {
         get soundNumber(): number {
             return this._soundNumber;
         }
-        get nextPictureNumber(): number {
-            return this._properties.time.nextPicture;
+        get nextPictures(): PicturePointer[] {
+            return this._properties.next.getNextPictures(this._pictureParts.number, this._pictureParts.id);
         }
         get isSetNextParts(): boolean {
             return this._properties.next.isSet;
+        }
+        get isSetWait(): boolean {
+            return !this._properties.wait.isTimeout;
         }
         get width(): number {
             if (this.isFill) {
@@ -545,6 +550,14 @@ module wwa_picture {
             return this._properties.color.cssColorValue;
         }
     }
+    /**
+     * ピクチャを指す際に使うポインタです。パーツ番号とIDは絶対値指定です。
+     */
+    export interface PicturePointer {
+        number: number,
+        id: number
+    }
+
     /** プロパティ
      * ===
      * - Q. なんでコンストラクタではなくて専用の関数でプロパティをセットするの？
@@ -669,20 +682,14 @@ module wwa_picture {
         }
     }
     class Time extends wwa_data.TimerArea implements Property {
-        private _nextPictureNumber: number;
         constructor(waitTime: number, beginTimeout: () => void, endTimeout: () => void) {
             super(waitTime, 0, () => {}, () => {
                 beginTimeout();
                 this._endTime.start();
             }, endTimeout);
-            this._nextPictureNumber = 0;
         }
         public setProperty(value) {
             this._endTime.setTime(Util.getIntValue(value[0]));
-            this._nextPictureNumber = Util.getIntValue(value[1], 0);
-        }
-        get nextPicture(): number {
-            return this._nextPictureNumber;
         }
     }
     class AnimationTimer extends wwa_data.TimerArea implements Property {
@@ -702,24 +709,39 @@ module wwa_picture {
     }
     class Next implements Property {
         private _isSet: boolean;
-        private _nextPictures: [{
-            number: wwa_data.RelativeValue,
-            id: wwa_data.RelativeValue
-        }];
-        constructor() {
+        private _nextPictures: PicturePointer[];
+        private _currentNumber: number;
+        private _currentID: number;
+        /**
+         * Next プロパティは、ピクチャの表示後に作成するピクチャを指定するプロパティです
+         * @param currentNumber 現在のピクチャのパーツ番号
+         * @param currentID 現在のピクチャのID
+         */
+        constructor(currentNumber: number, currentID: number) {
             this._isSet = false;
+            this._currentNumber = currentNumber;
+            this._currentID = currentID;
+            this._nextPictures = [];
         }
         public setProperty(value) {
             this._isSet = true;
             for (let index = 0; index < value.length; index += 2) {
+                let pictureNumber = Util.parseRelativeValue(value[index], this._currentNumber);
+                let pictureID = Util.parseRelativeValue(value[index + 1], this._currentID);
                 this._nextPictures.push({
-                    number: Util.getRelativeValue(value[index]),
-                    id: Util.getRelativeValue(value[index + 1], "+0")
-                });
+                    number: pictureNumber,
+                    id: pictureID
+                })
             }
         }
-        public appearParts(wwa: wwa_main.WWA) {
-            // TODO: まだ実装してないです。
+        /**
+         * 次のピクチャのパーツ番号とIDを配列ごと返します
+         * @param baseNumber 指定した値が相対値だった場合、ピクチャが格納しているパーツ番号
+         * @param baseID 指定した値が相対値だった場合、ピクチャが格納しているID
+         * @returns 次表示するピクチャのパーツ番号とID
+         */
+        public getNextPictures(baseNumber: number = 0, baseID: number = 0): PicturePointer[] {
+            return this._nextPictures;
         }
         get isSet(): boolean {
             return this._isSet;
@@ -728,19 +750,34 @@ module wwa_picture {
     class Wait extends wwa_data.Timer implements Property {
         private _appearParts: {
             number: number
-            x: wwa_data.RelativeValueWithPlayer,
-            y: wwa_data.RelativeValueWithPlayer,
+            x: string,
+            y: string,
             type: wwa_data.PartsType
         }
+        private _isSetPutParts: boolean;
         constructor(timeoutCallback: () => void) {
             super(0, () => {}, timeoutCallback);
+            this._isSetPutParts = false;
         }
         public setProperty(value) {
             this.setTime(Util.getIntValue(value[0]));
             this._appearParts.number = Util.getIntValue(value[1], 0);
-            this._appearParts.x = Util.getRelativeValueWithPlayer(value[2], "+0");
-            this._appearParts.y = Util.getRelativeValueWithPlayer(value[3], "+0");
+            if (value.length >= 3) {
+                this._isSetPutParts = true;
+            }
+            this._appearParts.x = Util.getStringValue(value[2], "+0");
+            this._appearParts.y = Util.getStringValue(value[3], "+0");
             this._appearParts.type = Util.getPartsTypeValue(value[4], wwa_data.PartsType.OBJECT);
+        }
+        public appearParts(wwa: wwa_main.WWA, triggerParts: {
+            ID: number,
+            type: wwa_data.PartsType,
+            pos: wwa_data.Coord
+        }) {
+            wwa.appearPartsEval(triggerParts.pos, this._appearParts.x, this._appearParts.y, this._appearParts.number, this._appearParts.type);
+        }
+        get isSetPutParts() {
+            return this._isSetPutParts;
         }
     }
     class Zoom extends CoordProperty implements Animation {
@@ -983,6 +1020,20 @@ module wwa_picture {
                 return 1;
             } else {
                 return 0;
+            }
+        }
+        /**
+         * 文字列の相対値を数字に変換します
+         * @param value 対象の数字
+         * @param baseNumber 相対値だった場合の、基準となる数字
+         * @returns 結果の数字
+         */
+        public static parseRelativeValue(value: string, baseNumber: number): number {
+            let relativeValue = new wwa_data.RelativeValue(value);
+            if (relativeValue.isRelative) {
+                return baseNumber + relativeValue.value;
+            } else {
+                return relativeValue.value;
             }
         }
         public static getStringValue(str: string, fallback: string = void 0): string {

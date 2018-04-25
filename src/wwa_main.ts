@@ -215,6 +215,10 @@ module wwa_main {
                 this._wwaData = e.data.wwaData;
                 // start PE
                 this._wwaData.pictureID = new Array(Consts.PICTURE_LENGTH);
+                this._wwaData.pictureTriggerPartsID = new Array(Consts.PICTURE_LENGTH);
+                this._wwaData.pictureTriggerPartsPosX = new Array(Consts.PICTURE_LENGTH);
+                this._wwaData.pictureTriggerPartsPosY = new Array(Consts.PICTURE_LENGTH);
+                this._wwaData.pictureTriggerPartsType = new Array(Consts.PICTURE_LENGTH);
                 this._pictureData = new wwa_picture.PictureData(this, Consts.PICTURE_LENGTH);
                 for (var i = 0; i < Consts.PICTURE_LENGTH; i++) {
                     this._wwaData.pictureID[i] = 0;
@@ -1619,15 +1623,17 @@ module wwa_main {
                     this._pictureManager.drawPictureData(picture, true);
                 }
                 if (picture.isTimeout) {
-                    if (picture.nextPictureNumber !== 0) {
-                        this._wwaData.pictureID[id] = picture.nextPictureNumber;
+                    for (let nextPicture of picture.nextPictures) {
+                        // TODO: 相対値に対応する
+                        this._wwaData.pictureID[nextPicture.id] = nextPicture.number;
                         let nextPictureInfo = this._getPictureDataFromWWAData(id);
                         this.createPicture(nextPictureInfo.partsID, id,
                             nextPictureInfo.triggerPartsID,
                             nextPictureInfo.triggerPartsType,
                             nextPictureInfo.triggerPartsPos,
                             true);
-                    } else {
+                    }
+                    if (picture.nextPictures.length <= 0) {
                         this.removePicture(id);
                     }
                 }
@@ -3745,6 +3751,7 @@ module wwa_main {
             }
             var picture = new wwa_picture.Picture(
                 this._pictureData,
+                { number: partsID, id: id },
                 { ID: triggerPartsID, type: triggerPartsType, pos: triggerPartsPos },
                 this.getObjectCropXById(partsID) / Consts.CHIP_SIZE,
                 this.getObjectCropYById(partsID) / Consts.CHIP_SIZE,
