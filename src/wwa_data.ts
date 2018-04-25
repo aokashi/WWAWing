@@ -432,6 +432,12 @@ module wwa_data {
 
     export class NonFinishTimer extends Timer {
         private _hasNoTimeout: boolean;
+        /**
+         * 0 と指定した場合、タイムアウトが発生しないタイマーです。
+         * @param time 終了するまでのミリ秒
+         * @param updateCallback タイマーが進行している間に実行する処理
+         * @param timeoutCallback タイムアウトした時に実行する処理
+         */
         constructor(time: number, updateCallback: () => void = () => {}, timeoutCallback: () => void = () => {}) {
             super(time, updateCallback, timeoutCallback);
         }
@@ -448,6 +454,9 @@ module wwa_data {
             } else {
                 this._hasNoTimeout = false;
             }
+        }
+        get hasNoTimeout(): boolean {
+            return this._hasNoTimeout;
         }
     }
 
