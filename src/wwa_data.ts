@@ -372,6 +372,7 @@ module wwa_data {
             this._updateCallback = updateCallback;
             this._timeoutCallback = timeoutCallback;
             this._intervalID = null;
+            this._isTimeout = false;
         }
         public start() {
             if (this._intervalID == null) {
@@ -427,6 +428,9 @@ module wwa_data {
 
         get isTimeout(): boolean {
             return this._isTimeout;
+        }
+        get enabled(): boolean {
+            return this._time > 0 && !this._isTimeout;
         }
     }
 
@@ -585,6 +589,25 @@ module wwa_data {
                 }
             }
         }
+    }
+
+    /**
+     * パーツを指すインタフェースです。
+     */
+    export interface PartsPointer {
+        ID: number,
+        pos: Coord,
+        type: PartsType
+    }
+
+    /**
+     * 座標が文字列になっているインタフェースです。パーツの出現で相対値を計算する場合に使います。
+     */
+    export interface PartsPonterWithStringPos {
+        ID: number,
+        x: string,
+        y: string,
+        type: PartsType
     }
 
     export enum Direction {
