@@ -192,11 +192,7 @@ module wwa_picture {
         public static isPrimaryAnimationTime: boolean = true;
         private _parent: PictureData;
         // 初期設定
-        private _triggerParts: {
-            ID: number,
-            type: wwa_data.PartsType,
-            pos: wwa_data.Coord
-        };
+        private _triggerParts: wwa_data.PartsPointer;
         private _pictureParts: PicturePointer;
         private _imageCrop: wwa_data.Coord;
         private _secondImageCrop: wwa_data.Coord;
@@ -240,7 +236,7 @@ module wwa_picture {
          */
         constructor(
         parent: PictureData,
-        pictureParts: PicturePointer, triggerParts: { ID: number, type: wwa_data.PartsType, pos: wwa_data.Coord },
+        pictureParts: PicturePointer, triggerParts: wwa_data.PartsPointer,
         imgCropX: number, imgCropY: number,
         secondImgCropX: number, secondImgCropY: number,
         soundNumber: number, waitTime: number,
@@ -254,6 +250,7 @@ module wwa_picture {
             this._properties = {
                 pos: new Pos(),
                 time: new Time(waitTime, () => {
+                    // 下の start メソッドと何が違うの？
                     this._isVisible = true;
                     this._properties.time_anim.start();
                     this._properties.wait.start();
@@ -267,10 +264,10 @@ module wwa_picture {
                 }, () => {
                     this.stopAnimation();
                 }),
-                wait: new Wait(() => {
+                wait: new Wait(this._triggerParts.ID, () => {
                     this._parent.parentWWA.stopPictureWaiting(this);
                     if (this._properties.wait.isSetPutParts) {
-                        this._properties.wait.appearParts(this._parent.parentWWA, triggerParts);
+                        this.appearParts(this._properties.wait.appearPartsPointer);
                     }
                 }),
                 next: new Next(pictureParts.number, pictureParts.id),
@@ -329,7 +326,11 @@ module wwa_picture {
          * @param value プロパティの内容を記述した配列です。
          */
         public setProperty(type: string, value: Array<string>) {
-            this._properties[type].setProperty(value);
+            if (type in this._properties) {
+                this._properties[type].setProperty(value);
+            } else {
+                throw new Error("指定したプロパティが無効です！: " + type);
+            }
         }
         /**
          * 文字列からプロパティを取得します。
@@ -386,6 +387,7 @@ module wwa_picture {
             if (this.isVisible) {
                 this._properties.time_anim.start();
             }
+            this._parent.parentWWA.startPictureWaiting(this);
         }
         public startAnimation() {
             if (this._animationIntervalID === null) {
@@ -403,6 +405,13 @@ module wwa_picture {
             if (this._animationIntervalID !== null) {
                 clearInterval(this._animationIntervalID);
             }
+        }
+        /**
+         * パーツを出現します。
+         * @param appearPartsPointer 
+         */
+        public appearParts(appearPartsPointer: wwa_data.PartsPonterWithStringPos) {
+            this._parent.parentWWA.appearPartsEval(this._triggerParts.pos, this._properties.wait.appearPartsPointer.x, this._properties.wait.appearPartsPointer.y, this._triggerParts.ID, this._triggerParts.type);
         }
 
         /**
@@ -479,11 +488,8 @@ module wwa_picture {
         get nextPictures(): PicturePointer[] {
             return this._properties.next.getNextPictures(this._pictureParts.number, this._pictureParts.id);
         }
-        get isSetNextParts(): boolean {
-            return this._properties.next.isSet;
-        }
         get isSetWait(): boolean {
-            return !this._properties.wait.isTimeout;
+            return this._properties.wait.enabled;
         }
         get width(): number {
             if (this.isFill) {
@@ -731,7 +737,7 @@ module wwa_picture {
                 this._nextPictures.push({
                     number: pictureNumber,
                     id: pictureID
-                })
+                });
             }
         }
         /**
@@ -748,33 +754,26 @@ module wwa_picture {
         }
     }
     class Wait extends wwa_data.Timer implements Property {
-        private _appearParts: {
-            number: number
-            x: string,
-            y: string,
-            type: wwa_data.PartsType
-        }
+        private _appearParts: wwa_data.PartsPonterWithStringPos;
         private _isSetPutParts: boolean;
-        constructor(timeoutCallback: () => void) {
+        private _triggerPartsID: number;
+        constructor(triggerPartsID: number, timeoutCallback: () => void) {
             super(0, () => {}, timeoutCallback);
             this._isSetPutParts = false;
+            this._triggerPartsID = triggerPartsID;
         }
         public setProperty(value) {
             this.setTime(Util.getIntValue(value[0]));
-            this._appearParts.number = Util.getIntValue(value[1], 0);
-            if (value.length >= 3) {
+            this._appearParts.ID = Util.parseRelativeValue(Util.getStringValue(value[1]), this._triggerPartsID);
+            if (value.length >= 4) {
                 this._isSetPutParts = true;
             }
             this._appearParts.x = Util.getStringValue(value[2], "+0");
             this._appearParts.y = Util.getStringValue(value[3], "+0");
             this._appearParts.type = Util.getPartsTypeValue(value[4], wwa_data.PartsType.OBJECT);
         }
-        public appearParts(wwa: wwa_main.WWA, triggerParts: {
-            ID: number,
-            type: wwa_data.PartsType,
-            pos: wwa_data.Coord
-        }) {
-            wwa.appearPartsEval(triggerParts.pos, this._appearParts.x, this._appearParts.y, this._appearParts.number, this._appearParts.type);
+        get appearPartsPointer(): wwa_data.PartsPonterWithStringPos {
+            return this._appearParts;
         }
         get isSetPutParts() {
             return this._isSetPutParts;

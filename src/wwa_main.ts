@@ -2380,6 +2380,7 @@ module wwa_main {
                         this._camera.getPosition()
                         );
                     this._player.setMessageWaiting();
+                    this._pictureData.stop();
                     return true;
                 } else {
                     if (this._messageQueue.length === 0) {
@@ -3425,7 +3426,6 @@ module wwa_main {
                 this._player.setMoveMacroWaiting(this._reservedMoveMacroTurn);
                 this._reservedMoveMacroTurn = void 0;
             }
-            this._pictureData.start();
             if (this._messageQueue.length === 0) {
                 this._hideMessageWindow();
             } else {
@@ -3474,6 +3474,7 @@ module wwa_main {
                     this._mouseStore.clear();
                 }
                 this._player.clearMessageWaiting();
+                this._pictureData.start();
             } else {
                 this.setMessageQueue(
                     this.getMessageById(mesID),
@@ -3790,13 +3791,13 @@ module wwa_main {
         }
 
         public startPictureWaiting(picture: wwa_picture.Picture) {
-            if (picture.isSetNextParts) {
+            if (picture.isSetWait) {
                 this._player.setPictureWaiting();
             }
         }
         
         public stopPictureWaiting(picture: wwa_picture.Picture) {
-            if (picture.isSetNextParts) {
+            if (picture.isSetWait) {
                 this._player.clearPictureWaiting();
             }
         }
