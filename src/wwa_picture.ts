@@ -1048,6 +1048,18 @@ module wwa_picture {
             }
             return new wwa_data.RelativeValue(str);
         }
+        /**
+         * 文
+         * @param str 
+         * @param fallback 
+         */
+        public static getRelativeValueToString(str: string, fallback: string = void 0): string {
+            if (Util.checkFallbackString(str, fallback)) {
+                return fallback;
+            }
+            let relativeValue = new wwa_data.RelativeValue(str);
+            return str;
+        }
         public static getRelativeValueWithPlayer(str: string, fallback: string = void 0): wwa_data.RelativeValueWithPlayer {
             if (Util.checkFallbackString(str, fallback)) {
                 return new wwa_data.RelativeValueWithPlayer(fallback);
