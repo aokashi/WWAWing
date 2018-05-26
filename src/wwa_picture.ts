@@ -3,81 +3,109 @@
 
 module wwa_picture {
     import Consts = wwa_data.WWAConsts;
-    const PropertyTable: { [key: string]: (data: Picture, value: Array<string>) => void } = {
-        "pos": (data, value) => {
-            data.setProperty("pos", value);
+    const PropertyTable: { [key: string]: (value: StringProperty, properties: PictureProperties) => void } = {
+        "pos": (value, properties) => {
+            let x = value.getIntValue(0);
+            let y = value.getIntValue(1);
+            properties.pos = new wwa_data.Coord(x, y);
         },
-        "time": (data, value) => {
-            data.setProperty("time", value);
+        "time": (value, properties) => {
+            let time = value.getIntValue(0);
+            properties.time = new wwa_data.NonFinishTimer(time);
         },
-        "time_anim": (data, value) => {
-            data.setProperty("time_anim", value);
+        "time_anim": (value, properties) => {
+            let startTime = value.getIntValue(0);
+            let endTime = value.getIntValue(1);
+            properties.time_anim = new wwa_data.TimerArea(startTime, endTime);
         },
-        "wait": (data, value) => {
-            data.setProperty("wait", value);
+        "wait": (value, properties) => {
+            let waitTime = value.getIntValue(0);
+            properties.wait = new wwa_data.Timer(waitTime);
         },
-        "next": (data, value) => {
-            data.setProperty("next", value);
+        "next": (value, properties) => {
+            // :thinking:
         },
-        "size": (data, value) => {
-            data.setProperty("size", value);
+        "size": (value, properties) => {
+            let width = value.getIntValue(0);
+            let height = value.getIntValue(1);
+            properties.size = new wwa_data.Coord(width, height);
         },
-        "clip": (data, value) => {
-            data.setProperty("clip", value);
+        "clip": (value, properties) => {
+            let width = value.getIntValue(0);
+            let height = value.getIntValue(1);
+            properties.clip = new wwa_data.Coord(width, height);
         },
-        "angle": (data, value) => {
-            data.setProperty("angle", value);
+        "angle": (value, properties) => {
+            let angle = value.getIntValue(0);
+            properties.angle = new wwa_data.Angle(angle);
         },
-        "repeat": (data, value) => {
-            data.setProperty("repeat", value);
+        "repeat": (value, properties) => {
+            let x = value.getIntValue(0);
+            let y = value.getIntValue(1);
+            properties.repeat = new wwa_data.Coord(x, y);
         },
-        "interval": (data, value) => {
-            data.setProperty("interval", value);
+        "interval": (value, properties) => {
+            let x = value.getIntValue(0);
+            let y = value.getIntValue(1);
+            properties.interval = new wwa_data.Coord(x, y);
         },
-        "opacity": (data, value) => {
-            data.setProperty("opacity", value);
+        "opacity": (value, properties) => {
+            let opacity = value.getFloatValue(0);
+            properties.opacity = new wwa_data.Rate(opacity);
         },
-        "text": (data, value) => {
-            data.setProperty("text", value);
+        "text": (value, properties) => {
+            let text = value.getStringValue(0, true);
+            properties.text = text;
         },
-        "text_var": (data, value) => {
+        "text_var": (value, properties) => {
+            return properties;
+        },
+        "font": (value, properties) => {
+            let font = value.getStringValue(0, true);
+        },
+        "color": (value, properties) => {
+            let r = value.getIntValue(0);
+            let g = value.getIntValue(1);
+            let b = value.getIntValue(2);
+            properties.color = new wwa_data.Color(r, g, b);
+        },
+    };
+    const AnimationTable: { [key: string]: (value: StringProperty) => Animation } = {
+        "anim_straight": (value) => {
 
+            return null;
         },
-        "font": (data, value) => {
-            data.setProperty("font", value);
+        "accel_straight": (value) => {
+            return null;
         },
-        "color": (data, value) => {
-            data.setProperty("color", value);
+        "anim_circle": (value) => {
+            return null;
         },
-        "anim_straight": (data, value) => {
-            data.setAnimation("StraightAnimation", new StraightAnimation(data), value);
+        "accel_circle": (value) => {
+            return null;
         },
-        "accel_straight": (data, value) => {
-            data.setAccel("StraightAnimation", value);
+        "anim_zoom": (value) => {
+            return null;
         },
-        "anim_circle": (data, value) => {
-            data.setAnimation("CircleAnimation", new CircleAnimation(data), value);
+        "accel_zoom": (value) => {
+            // data.setAccel("Zoom", value);
+            return null;
         },
-        "accel_circle": (data, value) => {
-            data.setAccel("CircleAnimation", value);
+        "anim_rotate": (value) => {
+            // data.setAnimation("Rotate", new Rotate(data), value);
+            return null;
         },
-        "anim_zoom": (data, value) => {
-            data.setAnimation("Zoom", new Zoom(data), value);
+        "accel_rotate": (value) => {
+            // data.setAccel("Rotate", value);
+            return null;
         },
-        "accel_zoom": (data, value) => {
-            data.setAccel("Zoom", value);
+        "anim_fade": (value) => {
+            // data.setAnimation("Fade", new Fade(data), value);
+            return null;
         },
-        "anim_rotate": (data, value) => {
-            data.setAnimation("Rotate", new Rotate(data), value);
-        },
-        "accel_rotate": (data, value) => {
-            data.setAccel("Rotate", value);
-        },
-        "anim_fade": (data, value) => {
-            data.setAnimation("Fade", new Fade(data), value);
-        },
-        "accel_fade": (data, value) => {
-            data.setAccel("Fade", value);
+        "accel_fade": (value) => {
+            // data.setAccel("Fade", value);
+            return null;
         }
     };
     const AlignTable: Array<string> = [
@@ -564,6 +592,147 @@ module wwa_picture {
         id: number
     }
 
+    /**
+     * ピクチャのプロパティ部分です。
+     */
+    export interface PictureProperties {
+        pos: wwa_data.Coord,
+        time: wwa_data.NonFinishTimer,
+        time_anim: wwa_data.TimerArea,
+        wait: wwa_data.Timer,
+        next: PicturePointer[],
+        size: wwa_data.Coord,
+        clip: wwa_data.Coord,
+        angle: wwa_data.Angle,
+        repeat: wwa_data.Coord,
+        interval: wwa_data.Coord,
+        opacity: wwa_data.Rate,
+        text: string,
+        font: string,
+        color: wwa_data.Color
+    }
+
+    export class StringProperty {
+        private _name: string;
+        private _value: string[];
+        /**
+         * プロパティを表現した文字列です。プロパティの作成時に使います。
+         * @param line プロパティを記述した文字列(1行分)
+         */
+        constructor (line: string) {
+            let property = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\=(.*)/);
+            if (property === null || property.length !== 3) {
+                throw new Error("プロパティではありません");
+            }
+            this._name = property[1];
+            this._value = property[2].match(/"[^"]*"|[^,]+/g);
+        }
+        /**
+         * 配列から整数に変換します。
+         * @param index 配列から取り出す値の位置
+         * @returns 取り出して整数に変換した値(範囲外の場合はundefined)
+         */
+        public getIntValue(index: number): number {
+            if (!this._checkArrayLength(index)) {
+                return undefined;
+            }
+            let value = parseInt(this._value[index], 10);
+            if (isNaN(value)) {
+                throw new Error("整数ではありません！");
+            }
+            return value;
+        }
+        /**
+         * 配列から浮動小数点数に変換します。
+         * @param index 配列から取り出す値の位置
+         * @returns 取り出して浮動小数点数に変換した値(範囲外の場合はundefined)
+         */
+        public getFloatValue(index: number): number {
+            if (!this._checkArrayLength(index)) {
+                return undefined;
+            }
+            let value = parseFloat(this._value[index]);
+            if (isNaN(value)) {
+                throw new Error("浮動小数点数ではありません！");
+            }
+            return value;
+        }
+        /**
+         * 配列からブール値に変換します。
+         * @param index 配列から取り出す値の位置
+         * @returns 取り出してブール値に変換した値(範囲外の場合はundefined)
+         */
+        public getBoolValue(index: number): boolean {
+            if (!this._checkArrayLength(index)) {
+                return undefined;
+            }
+            let value = parseInt(this._value[index]);
+            if (value === 0) {
+                return false;
+            } else if (value === 1) {
+                return true;
+            } else {
+                throw new Error("0か1を指定してください！");
+            }
+        }
+        /**
+         * 配列からパーツ種類に変換します。
+         * @param index 配列から取り出す値の位置
+         * @returns 取り出してパーツ種類に変換した値(範囲外の場合はundefined)
+         */
+        public getPartsTypeValue(index: number): wwa_data.PartsType {
+            let isMap = this.getBoolValue(index);
+            if (isMap === undefined) {
+                return undefined;
+            }
+            if (isMap) {
+                return wwa_data.PartsType.MAP;
+            } else {
+                return wwa_data.PartsType.OBJECT;
+            }
+        }
+        /**
+         * 配列から文字列を取り出します。
+         * @param index 配列から取り出す値の位置
+         * @param needQuote 両端にダブルクォーテーションが必要か
+         * @returns 取り出した文字列(範囲外の場合はundefined)
+         */
+        public getStringValue(index: number, needQuote: boolean): string {
+            if (!this._checkArrayLength(index)) {
+                return undefined;
+            }
+            if (needQuote) {
+                return StringProperty.trimString(this._value[index], '"');
+            } else {
+                return this._value[index];
+            }
+        }
+        /**
+         * 指定した位置が配列の範囲内か確認します。
+         * @param index 配列内で調べる位置
+         * @returns 配列の範囲内の場合は true そうでない場合は false
+         */
+        private _checkArrayLength(index: number): boolean {
+            if (index > this._value.length) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        /**
+         * 文字列の両端の記号を切り取ります
+         * @param str 切り取られる文字列(両端に対象の記号がないと正常に処理できません)
+         * @param trimmingChar 切り取り対象の記号
+         */
+        public static trimString(str: string, trimmingChar: string): string {
+            if (str.charAt(0) === trimmingChar && str.charAt(str.length - 1) === trimmingChar) {
+                return str.slice(1, -1);
+            } else {
+                throw new Error("両端に切り取る記号がありません");
+            }
+        }
+    }
+
     /** プロパティ
      * ===
      * - Q. なんでコンストラクタではなくて専用の関数でプロパティをセットするの？
@@ -574,7 +743,7 @@ module wwa_picture {
          * プロパティを記した配列から、プロパティをセットします。
          * @param value 
          */
-        setProperty(value: Array<string>);
+        // setProperty(value: Array<string>);
     }
     interface Animation extends Property {
         setAccel(value: Array<string>);
@@ -597,14 +766,9 @@ module wwa_picture {
     }
     class Pos extends CoordProperty implements Property {
         private _basePos: wwa_data.Coord;
-        constructor() {
-            super(0, 0);
-            this._basePos = new wwa_data.Coord(0, 0);
-        }
-        public setProperty(value) {
-            super.setProperty(value);
-            this._basePos.x = this.x;
-            this._basePos.y = this.y;
+        constructor(x: number = 0, y: number = 0) {
+            super(x, y);
+            this._basePos = new wwa_data.Coord(x, y);
         }
         /**
          * ベースの位置を移動します。
@@ -687,30 +851,18 @@ module wwa_picture {
             this._round += this._accel.round;
         }
     }
-    class Time extends wwa_data.TimerArea implements Property {
-        constructor(waitTime: number, beginTimeout: () => void, endTimeout: () => void) {
-            super(waitTime, 0, () => {}, () => {
-                beginTimeout();
-                this._endTime.start();
-            }, endTimeout);
-        }
-        public setProperty(value) {
-            this._endTime.setTime(Util.getIntValue(value[0]));
+    class Time implements Property {
+        private _endTime: number;
+        constructor(endTime: number) {
+            this._endTime = endTime;
         }
     }
-    class AnimationTimer extends wwa_data.TimerArea implements Property {
-        constructor(beginTimeout: () => void, endTimeout: () => void) {
-            super(0, 0, () => {}, () => {
-                beginTimeout();
-                this._endTime.start();
-            }, endTimeout);
-        }
-        public setProperty(value) {
-            this._beginTime.setTime(Util.getIntValue(value[0]));
-            this._endTime.setTime(Util.getIntValue(value[1]));
-        }
-        get isAnimatable(): boolean {
-            return this._beginTime.isTimeout && !this._endTime.isTimeout;
+    class AnimationTimer implements Property {
+        private _startTime: boolean;
+        private _endTime: boolean;
+        constructor(startTime, endTime) {
+            this._startTime = startTime;
+            this._endTime = endTime;
         }
     }
     class Next implements Property {
@@ -763,13 +915,14 @@ module wwa_picture {
             this._triggerPartsID = triggerPartsID;
         }
         public setProperty(value) {
+            // TODO: 雑すぎる、もうちょっといい方法はないのか
             this.setTime(Util.getIntValue(value[0]));
-            this._appearParts.ID = Util.parseRelativeValue(Util.getStringValue(value[1]), this._triggerPartsID);
+            this._appearParts.ID = parseInt(Util.getRelativeValueToString(value[1], this._triggerPartsID.toString()));
             if (value.length >= 4) {
                 this._isSetPutParts = true;
             }
-            this._appearParts.x = Util.getStringValue(value[2], "+0");
-            this._appearParts.y = Util.getStringValue(value[3], "+0");
+            this._appearParts.x = Util.getRelativeValueToString(value[2], "+0");
+            this._appearParts.y = Util.getRelativeValueToString(value[3], "+0");
             this._appearParts.type = Util.getPartsTypeValue(value[4], wwa_data.PartsType.OBJECT);
         }
         get appearPartsPointer(): wwa_data.PartsPonterWithStringPos {
@@ -947,80 +1100,6 @@ module wwa_picture {
         }
     }
     export class Util {
-        public static getIntValue(str: string, fallback: number = void 0): number {
-            var value = parseInt(str, 10);
-            if (Util.checkFallbackNumber(value, fallback)) {
-                return fallback;
-            }
-            return value;
-        }
-        public static getFloatValue(str: string, fallback: number = void 0): number {
-            var value = parseFloat(str);
-            if (Util.checkFallbackNumber(value, fallback)) {
-                return fallback;
-            }
-            return value;
-        }
-        /**
-         * フォールバック値も含めた数字を代入して、ちゃんとフォールバックできたか確認します。
-         * フォールバックせず、本来の数字が存在する場合は false になります。
-         * @param value 本来の数字
-         * @param fallback フォールバック値
-         */
-        public static checkFallbackNumber(value: number, fallback: number): boolean {
-            if (isNaN(value)) {
-                if (fallback === void 0) {
-                    throw new Error("値が正しく定義されていません。");
-                }
-                return true;
-            }
-            return false;
-        }
-        public static checkFallbackString(value: string, fallback: string): boolean {
-            if (value === void 0) {
-                if (fallback === void 0) {
-                    throw new Error("値が正しく定義されていません。");
-                }
-                return true;
-            }
-            return false;
-        }
-        public static getBoolValue(str: string, fallback: boolean = void 0): boolean {
-            var fallbackNumber = Util.parseIntFromBool(fallback);
-            var value = Util.getIntValue(str, fallbackNumber);
-            return Util.parseBool(value);
-        }
-        public static getPartsTypeValue(str: string, fallback: wwa_data.PartsType = void 0): wwa_data.PartsType {
-            // TODO: フォールバック処理をしっかりする
-            var isMap = Util.getBoolValue(str, fallback === wwa_data.PartsType.MAP ? true : false);
-            if (isMap) {
-                return wwa_data.PartsType.MAP;
-            } else {
-                return wwa_data.PartsType.OBJECT;
-            }
-        }
-        /**
-         * 数字の値を引数に、bool値を返します
-         * @param value 数字
-         */
-        public static parseBool(value: number): boolean {
-            if (value) {
-                return true;
-            } else {
-                return false;
-            }
-        }
-        /**
-         * boolの値を引数に、0か1かどちらかを返します
-         * @param value bool値
-         */
-        public static parseIntFromBool(value: boolean): number {
-            if (value) {
-                return 1;
-            } else {
-                return 0;
-            }
-        }
         /**
          * 文字列の相対値を数字に変換します
          * @param value 対象の数字
@@ -1029,11 +1108,7 @@ module wwa_picture {
          */
         public static parseRelativeValue(value: string, baseNumber: number): number {
             let relativeValue = new wwa_data.RelativeValue(value);
-            if (relativeValue.isRelative) {
-                return baseNumber + relativeValue.value;
-            } else {
-                return relativeValue.value;
-            }
+            return relativeValue.getValue(baseNumber);
         }
         public static getStringValue(str: string, fallback: string = void 0): string {
             if (Util.checkFallbackString(str, fallback)) {
@@ -1049,11 +1124,13 @@ module wwa_picture {
             return new wwa_data.RelativeValue(str);
         }
         /**
-         * 文
-         * @param str 
-         * @param fallback 
+         * 文字列から相対値であるか確認した上で、文字列で返します。
+         * @param str 入力の文字列
+         * @param fallback 空欄の場合で割り当てる文字列
+         * @returns 文字列そのまま
          */
         public static getRelativeValueToString(str: string, fallback: string = void 0): string {
+            // TODO: 相対値になっているか確認する辺りをしっかりする
             if (Util.checkFallbackString(str, fallback)) {
                 return fallback;
             }
@@ -1065,18 +1142,6 @@ module wwa_picture {
                 return new wwa_data.RelativeValueWithPlayer(fallback);
             }
             return new wwa_data.RelativeValueWithPlayer(str);
-        }
-        /**
-         * 文字列の両端の記号を切り取ります
-         * @param str 切り取られる文字列(両端に対象の記号がないと正常に処理できません)
-         * @param trimmingChar 切り取り対象の記号
-         */
-        public static trimString(str: string, trimmingChar: string): string {
-            if (str.charAt(0) === trimmingChar && str.charAt(str.length - 1) === trimmingChar) {
-                return str.slice(1, -1);
-            } else {
-                throw new Error("両端に切り取る記号がありません");
-            }
         }
     }
 }
