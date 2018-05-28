@@ -7,20 +7,20 @@ module wwa_picture {
         "pos": (value, properties) => {
             let x = value.getIntValue(0);
             let y = value.getIntValue(1);
-            properties.pos = new wwa_data.Coord(x, y);
+            properties.pos = new Pos(x, y);
         },
         "time": (value, properties) => {
             let time = value.getIntValue(0);
-            properties.time = new wwa_data.NonFinishTimer(time);
+            properties.time = new Time(time);
         },
         "time_anim": (value, properties) => {
             let startTime = value.getIntValue(0);
             let endTime = value.getIntValue(1);
-            properties.time_anim = new wwa_data.TimerArea(startTime, endTime);
+            properties.time_anim = new AnimationTimer(startTime, endTime);
         },
         "wait": (value, properties) => {
             let waitTime = value.getIntValue(0);
-            properties.wait = new wwa_data.Timer(waitTime);
+            properties.wait = new Wait(waitTime);
         },
         "next": (value, properties) => {
             // :thinking:
@@ -28,40 +28,46 @@ module wwa_picture {
         "size": (value, properties) => {
             let width = value.getIntValue(0);
             let height = value.getIntValue(1);
-            properties.size = new wwa_data.Coord(width, height);
+            properties.size = new Size(width, height);
         },
         "clip": (value, properties) => {
             let width = value.getIntValue(0);
             let height = value.getIntValue(1);
-            properties.clip = new wwa_data.Coord(width, height);
+            properties.clip = new Clip(width, height);
         },
         "angle": (value, properties) => {
             let angle = value.getIntValue(0);
-            properties.angle = new wwa_data.Angle(angle);
+            properties.angle = new Angle(angle);
         },
         "repeat": (value, properties) => {
             let x = value.getIntValue(0);
             let y = value.getIntValue(1);
-            properties.repeat = new wwa_data.Coord(x, y);
+            properties.repeat = new Repeat(x, y);
         },
         "interval": (value, properties) => {
             let x = value.getIntValue(0);
             let y = value.getIntValue(1);
-            properties.interval = new wwa_data.Coord(x, y);
+            properties.interval = new Interval(x, y);
         },
         "opacity": (value, properties) => {
             let opacity = value.getFloatValue(0);
-            properties.opacity = new wwa_data.Rate(opacity);
+            properties.opacity = new Opacity(opacity);
         },
         "text": (value, properties) => {
             let text = value.getStringValue(0, true);
-            properties.text = text;
+            let align = value.getIntValue(1);
+            let baseline = value.getIntValue(2);
+            properties.text = new Text(text, align, baseline);
         },
         "text_var": (value, properties) => {
-            return properties;
+            // :thinking:
         },
         "font": (value, properties) => {
-            let font = value.getStringValue(0, true);
+            let size = value.getIntValue(0);
+            let weight = value.getBoolValue(1);
+            let italic = value.getBoolValue(2);
+            let family = value.getStringValue(3, true);
+            properties.font = new Font(size, weight, italic, family);
         },
         "color": (value, properties) => {
             let r = value.getIntValue(0);
@@ -72,20 +78,20 @@ module wwa_picture {
     };
     const AnimationTable: { [key: string]: (value: StringProperty) => Animation } = {
         "anim_straight": (value) => {
-
-            return null;
-        },
-        "accel_straight": (value) => {
-            return null;
+            let x = value.getIntValue(0);
+            let y = value.getIntValue(1);
+            return new StraightAnimation(x, y);
         },
         "anim_circle": (value) => {
-            return null;
-        },
-        "accel_circle": (value) => {
-            return null;
+            let angle = value.getIntValue(0);
+            let speed = value.getFloatValue(1);
+            let round = value.getIntValue(2);
+            return new CircleAnimation(angle, speed, round);
         },
         "anim_zoom": (value) => {
-            return null;
+            let x = value.getIntValue(0);
+            let y = value.getIntValue(1);
+            return new Zoom(x, y);
         },
         "accel_zoom": (value) => {
             // data.setAccel("Zoom", value);
@@ -578,12 +584,12 @@ module wwa_picture {
      */
     export interface PictureProperties {
         pos: Pos,
-        time: wwa_data.NonFinishTimer,
-        time_anim: wwa_data.TimerArea,
+        time: Time,
+        time_anim: AnimationTimer,
         wait: Wait,
-        next: PicturePointer[],
-        size: wwa_data.Coord,
-        clip: wwa_data.Coord,
+        next: Next,
+        size: Size,
+        clip: Clip,
         angle: Angle,
         repeat: Repeat,
         interval: Interval,
@@ -717,14 +723,24 @@ module wwa_picture {
         }
     }
     
+    /**
+     * プロパティを表すインタフェースです。
+     * プロパティを追加する場合は、 Property インタフェース を汎化したクラスを作成します。
+     */
     export interface Property {
     }
     interface Animation extends Property {
         update(parent: Picture);
         accel();
     }
+
     class Pos extends wwa_data.Coord implements Property {
         private _basePos: wwa_data.Coord;
+        /**
+         * 表示位置を指定します。
+         * @param x 表示するX座標
+         * @param y 表示するY座標
+         */
         constructor(x: number = 0, y: number = 0) {
             super(x, y);
             this._basePos = new wwa_data.Coord(x, y);
@@ -746,6 +762,11 @@ module wwa_picture {
     }
     class StraightAnimation extends wwa_data.Coord implements Animation {
         private _accel: wwa_data.Coord;
+        /**
+         * 直線にまっすぐ進むアニメーションです。
+         * @param x 1フレームに動かすX座標
+         * @param y 1フレームに動かすY座標
+         */
         constructor(x: number = 0, y: number = 0) {
             super(x, y);
             this._accel = new wwa_data.Coord(0, 0);
@@ -761,17 +782,24 @@ module wwa_picture {
     }
     class CircleAnimation implements Animation {
         private _parent: Picture;
-        private _angle: wwa_data.Angle;
+        private _size: wwa_data.Coord;
         private _speed: wwa_data.Angle;
-        private _round: number;
+        private _angle: wwa_data.Angle;
         private _accel: {
             angle: wwa_data.Angle,
             round: number
         };
-        constructor(angle: number = 0.0, speed: number, round: number) {
-            this._angle = new wwa_data.Angle(angle);
+        /**
+         * 円を描くアニメーションです。
+         * @param width 円を描く横幅
+         * @param height 円を描く縦幅
+         * @param speed 1フレームに動かす角度
+         * @param angle 最初の角度
+         */
+        constructor(width: number = 0, height: number = 0, angle: number = 0.0, speed: number = 0.0) {
+            this._size = new wwa_data.Coord(width, height);
             this._speed = new wwa_data.Angle(speed);
-            this._round = round;
+            this._angle = new wwa_data.Angle(angle);
             this._accel = {
                 angle: new wwa_data.Angle(0),
                 round: 0
@@ -791,6 +819,10 @@ module wwa_picture {
     }
     class Time implements Property {
         private _endTime: number;
+        /**
+         * 表示時間を指定します。
+         * @param endTime 表示する時間。この時間が過ぎるとピクチャは消えます。
+         */
         constructor(endTime: number) {
             this._endTime = endTime;
         }
@@ -870,6 +902,11 @@ module wwa_picture {
             return this._isSetPutParts;
         }
     }
+    class Size extends wwa_data.Coord implements Property {
+        constructor (width: number = 0, height: number = 0) {
+            super(width, height);
+        }
+    }
     class Zoom extends wwa_data.Coord implements Animation {
         private _accel: wwa_data.Coord;
         constructor(width: number = 0, height: number = 0) {
@@ -885,13 +922,31 @@ module wwa_picture {
             this.y += this._accel.y;
         }
     }
+    class Clip extends wwa_data.Coord implements Property {
+        /**
+         * 表示するピクチャのサイズをイメージから指定します。
+         * @param width 表示するイメージの横幅の範囲(マス単位)
+         * @param height 表示するイメージの縦幅の範囲(マス単位)
+         */
+        constructor(width: number = 0, height: number = 0) {
+            super(width, height);
+        }
+    }
     class Angle extends wwa_data.Angle {
+        /**
+         * イメージの角度を指定します。
+         * @param angle 傾ける角度(0-359)
+         */
         constructor(angle: number = 0) {
             super(angle);
         }
     }
     class Rotate extends wwa_data.Angle implements Animation {
         private _accel: wwa_data.Angle;
+        /**
+         * イメージが回転するアニメーションです。
+         * @param angle 1フレームに回る角度
+         */
         constructor(angle: number = 0) {
             super(angle);
             this._accel = new wwa_data.Angle(0);
@@ -906,7 +961,13 @@ module wwa_picture {
     }
     class Repeat extends wwa_data.Coord implements Property {
         private _isFill: boolean;
-        constructor(x: number, y: number, isFill: boolean = false) {
+        /**
+         * イメージを繰り返して表示します。
+         * @param x 繰り返すイメージの横方向の個数
+         * @param y 繰り返すイメージの縦方向の個数
+         * @param isFill イメージを画面に全部敷き詰めるか(trueにした場合、 x と y の指定は無効になります)
+         */
+        constructor(x: number = 1, y: number = 1, isFill: boolean = false) {
             super(x, y);
             this._isFill = false;
         }
@@ -916,6 +977,11 @@ module wwa_picture {
     }
     class Interval extends wwa_data.Coord implements Property {
         private _shift: wwa_data.Coord;
+        /**
+         * イメージを繰り返し表示する際の間隔を指定します。
+         * @param x 横方向の間隔
+         * @param y 縦方向の間隔
+         */
         constructor(x: number, y: number) {
             super(x, y);
             this._shift = new wwa_data.Coord(0, 0);
@@ -925,12 +991,20 @@ module wwa_picture {
         }
     }
     class Opacity extends wwa_data.Rate implements Property {
+        /**
+         * 表示するイメージの不透明度を指定します。
+         * @param opacity 不透明度(0で透明、1で不透明)
+         */
         constructor(opacity: number = 1.0) {
             super(opacity, false);
         }
     }
     class Fade extends wwa_data.Rate implements Animation {
         private _accel: wwa_data.Rate;
+        /**
+         * イメージの不透明度を変化するアニメーションです。
+         * @param value 1フレーム時間に加わる不透明度
+         */
         constructor(value: number = 0.0) {
             super(value, true);
             this._accel = new wwa_data.Rate(0.0, true);
@@ -947,6 +1021,12 @@ module wwa_picture {
         private _str: string;
         private _align: number;
         private _baseline: number;
+        /**
+         * イメージに文字表示を加えます。
+         * @param str 表示する文字列
+         * @param align 文字を表示する位置
+         * @param baseline 文字を表示する縦方向の位置
+         */
         constructor(str: string = "", align: number = 0, baseline: number = 0) {
             this._str = str;
             this._align = align;
