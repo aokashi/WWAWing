@@ -276,36 +276,79 @@ module wwa_data {
 
     }
 
-    abstract class MagicNumber {
-        protected _prefix: string;
-        protected _value: number;
-        protected _hasValue: boolean;
+    export class RelativeValue {
+        private _value: number;
+        private _isRelative: boolean;
         /**
-         * 接頭辞の付いた文字です。主に相対指定が可能な数字で使われます。
-         * @param str 文字列
+         * 相対値です。
+         * @param str 
          */
         constructor(str: string) {
-            let value = MagicNumber.splitValue(str);
-            this._prefix = value.prefix;
-            this._value = value.value;
-            this._hasValue = value.hasValue;
+            if (!RelativeValue.CheckValue(str)) {
+                throw new Error("不正な数字です!!");
+            }
+            let prefix = RelativeValue.getPrefix(str);
+            let value = RelativeValue.popPrefix(str);
+            this._isRelative = prefix !== '';
+            this._value = value;
+        }
+
+        /**
+         * 相対値から数字を出力します。
+         * @param baseNumber 相対値だった場合、基準となる数字
+         * @returns 出力される数字
+         */
+        public getValue(baseNumber: number): number {
+            if (this._isRelative) {
+                return baseNumber + this._value;
+            } else {
+                return this._value;
+            }
+        }
+
+        /**
+         * 指定した文字列が相対値または絶対値か確認します。
+         * @param str 数字を表した文字列
+         * @returns その文字列が相対値または絶対値であるか
+         */
+        public static CheckValue(str: string): boolean {
+            let prefix = RelativeValue.getPrefix(str);
+            if (prefix === '+') {
+                return true;
+            } else if (prefix === '-') {
+                return true;
+            } else if (prefix === '') {
+                return true;
+            } else {
+                return false;
+            }
+            // このあたり、もうちょっとなんとか出来ない？
+            // 確認するだけでなく、接頭辞と値をセットで返す方法もあり？
         }
 
         /**
          * 接頭辞を取得します。
          * @param str 相対値となる文字列
-         * @returns 接頭辞
+         * @returns 接頭辞(接頭辞がなく、数字だけの場合は空白)
          */
         public static getPrefix(str: string): string {
-            return str.charAt(0);
+            let prefix = str.charAt(0);
+            if (isFinite(parseInt(prefix))) {
+                return '';
+            }
+            // 相対値or絶対値になっているか確認する処理をこの中に入れたほうがいい？
+            return prefix;
         }
         
         /**
          * 接頭辞を取り出した値を取得します。
          * @param str 相対値となる文字列
-         * @returns 接頭辞を取り出した数字
+         * @returns 接頭辞を取り出した数字(接頭辞がない場合は数字そのもの)
          */
         public static popPrefix(str: string): number {
+            if (RelativeValue.getPrefix(str) === '') {
+                return parseInt(str);
+            }
             return parseInt(str.substr(1));
         }
 
@@ -319,57 +362,12 @@ module wwa_data {
             value: number,
             hasValue: boolean
         } {
-            let value = MagicNumber.popPrefix(str);
+            let value = RelativeValue.popPrefix(str);
             let hasValue = isNaN(value) ? false : true;
             return {
-                prefix: MagicNumber.getPrefix(str),
+                prefix: RelativeValue.getPrefix(str),
                 value: value,
                 hasValue: hasValue
-            }
-        }
-    }
-
-    export class RelativeValue extends MagicNumber {
-        constructor(str: string) {
-            super(str);
-        }
-
-        public getValue(baseNumber: number): number {
-            let checkedValue = this._checkValueByPrefix(baseNumber);
-            if (checkedValue.didGetValueWithPrefix) {
-                return checkedValue.value;
-            } else {
-                if (this._hasValue) {
-                    return this._value;
-                } else {
-                    throw new Error("不正な数字です!!");
-                }
-            }
-        }
-
-        /**
-         * 相対値に基づいて処理を返します。
-         * @param baseNumber
-         * @return value: 戻ってきた値, didGetValueWithPrefix: ちゃんと相対値に基づいた処理を実行したか
-         */
-        protected _checkValueByPrefix(baseNumber: number): {
-            value: number,
-            didGetValueWithPrefix: boolean;
-        } {
-            if (this._prefix === '+') {
-                return {
-                    value: baseNumber + this._value,
-                    didGetValueWithPrefix: true
-                };
-            } else if (this._prefix === '-') {
-                return {
-                    value: baseNumber - this._value,
-                    didGetValueWithPrefix: true
-                };
-            }
-            return {
-                value: 0,
-                didGetValueWithPrefix: false
             }
         }
     }
@@ -382,13 +380,6 @@ module wwa_data {
          */
         constructor(str: string) {
             super(str);
-        }
-
-        protected _checkValueByPrefix(baseNumber: number): {
-            value: number,
-            didGetValueWithPrefix: boolean
-        } {
-            return super._checkValueByPrefix(baseNumber);
         }
     }
 
