@@ -268,16 +268,7 @@ module wwa_picture {
             this._soundNumber = soundNumber;
             this._properties = {
                 pos: new Pos(),
-                time: new Time(waitTime, () => {
-                    // 下の start メソッドと何が違うの？
-                    this._isVisible = true;
-                    this._properties.time_anim.start();
-                    this._properties.wait.start();
-                    this._parent.parentWWA.playSound(this._soundNumber);
-                }, () => {
-                    this._isVisible = false;
-                    this._isTimeout = true;
-                }),
+                time: new Time(waitTime),
                 time_anim: new AnimationTimer(() => {
                     this.startAnimation();
                 }, () => {
@@ -299,7 +290,7 @@ module wwa_picture {
                 text: new Text(),
                 font: new Font(),
                 color: new Color()
-            }
+            };
             this._anims = {};
             this._accelProperties = {};
             this._isVisible = false;
@@ -310,10 +301,16 @@ module wwa_picture {
                 this._hasNoWaitTime = false;
             }
             this._animationIntervalID = null;
-            
+
             message.forEach((line, index) => {
                 this.createProperty(line);
             }, this);
+
+            for (let propertyName in PropertyTable) {
+                if (propertyName in this._properties) {
+                    // TODO: 上記で作った StringProperty を使ってプロパティをセットする
+                }
+            }
 
             for (var accelType in this._accelProperties) {
                 this._anims[accelType].setAccel(this._accelProperties[accelType]);
@@ -394,6 +391,24 @@ module wwa_picture {
                 self._anims[animationType].update();
             }
         }
+
+        /**
+         * ピクチャの表示を開始します。t
+         */
+        public disp() {
+            this._isVisible = true;
+            this._properties.time_anim.start();
+            this._properties.wait.start();
+            this._parent.parentWWA.playSound(this._soundNumber);
+        }
+        /**
+         * ピクチャの表示を終了します。
+         */
+        public disappear() {
+            this._isVisible = false;
+            this._isTimeout = true;
+        }
+
         /**
          * ピクチャのタイマーを開始します。
          */
@@ -449,7 +464,7 @@ module wwa_picture {
         /**
          * ピクチャのサイズを変えます。
          * @param x 拡大するX座標
-         * @param Y 拡大するY座標
+         * @param y 拡大するY座標
          */
         public resize(x: number, y: number) {
             this._properties.size.x += x;
