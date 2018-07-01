@@ -3,77 +3,77 @@
 
 module wwa_picture {
     import Consts = wwa_data.WWAConsts;
-    const PropertyTable: { [key: string]: (value: StringProperty, properties: PictureProperties) => void } = {
-        "pos": (value, properties) => {
+    const PropertyTable: { [key: string]: (value: StringProperty) => Property } = {
+        "pos": (value) => {
             let x = value.getIntValue(0);
             let y = value.getIntValue(1);
-            properties.pos = new Pos(x, y);
+            return new Pos(x, y);
         },
-        "time": (value, properties) => {
+        "time": (value) => {
             let time = value.getIntValue(0);
-            properties.time = new Time(time);
+            return new Time(time);
         },
-        "time_anim": (value, properties) => {
+        "time_anim": (value) => {
             let startTime = value.getIntValue(0);
             let endTime = value.getIntValue(1);
-            properties.time_anim = new AnimationTimer(startTime, endTime);
+            return new AnimationTimer(startTime, endTime);
         },
-        "wait": (value, properties) => {
+        "wait": (value) => {
             let waitTime = value.getIntValue(0);
-            properties.wait = new Wait(waitTime);
+            return new Wait(waitTime);
         },
-        "next": (value, properties) => {
+        "next": (value) => {
             // :thinking:
         },
-        "size": (value, properties) => {
+        "size": (value) => {
             let width = value.getIntValue(0);
             let height = value.getIntValue(1);
-            properties.size = new Size(width, height);
+            return new Size(width, height);
         },
-        "clip": (value, properties) => {
+        "clip": (value) => {
             let width = value.getIntValue(0);
             let height = value.getIntValue(1);
-            properties.clip = new Clip(width, height);
+            return new Clip(width, height);
         },
-        "angle": (value, properties) => {
+        "angle": (value) => {
             let angle = value.getIntValue(0);
-            properties.angle = new Angle(angle);
+            return new Angle(angle);
         },
-        "repeat": (value, properties) => {
+        "repeat": (value) => {
             let x = value.getIntValue(0);
             let y = value.getIntValue(1);
-            properties.repeat = new Repeat(x, y);
+            return new Repeat(x, y);
         },
-        "interval": (value, properties) => {
+        "interval": (value) => {
             let x = value.getIntValue(0);
             let y = value.getIntValue(1);
-            properties.interval = new Interval(x, y);
+            return new Interval(x, y);
         },
-        "opacity": (value, properties) => {
+        "opacity": (value) => {
             let opacity = value.getFloatValue(0);
-            properties.opacity = new Opacity(opacity);
+            return new Opacity(opacity);
         },
-        "text": (value, properties) => {
+        "text": (value) => {
             let text = value.getStringValue(0, true);
             let align = value.getIntValue(1);
             let baseline = value.getIntValue(2);
-            properties.text = new Text(text, align, baseline);
+            return new Text(text, align, baseline);
         },
-        "text_var": (value, properties) => {
+        "text_var": (value) => {
             // :thinking:
         },
-        "font": (value, properties) => {
+        "font": (value) => {
             let size = value.getIntValue(0);
             let weight = value.getBoolValue(1);
             let italic = value.getBoolValue(2);
             let family = value.getStringValue(3, true);
-            properties.font = new Font(size, weight, italic, family);
+            return new Font(size, weight, italic, family);
         },
-        "color": (value, properties) => {
+        "color": (value) => {
             let r = value.getIntValue(0);
             let g = value.getIntValue(1);
             let b = value.getIntValue(2);
-            properties.color = new wwa_data.Color(r, g, b);
+            return new wwa_data.Color(r, g, b);
         },
     };
     const AnimationTable: { [key: string]: (value: StringProperty) => Animation } = {
@@ -224,14 +224,10 @@ module wwa_picture {
     }
     export class Picture {
         public static isPrimaryAnimationTime: boolean = true;
-        private _parent: PictureData;
         // 初期設定
-        private _triggerParts: wwa_data.PartsPointer;
-        private _pictureParts: PicturePointer;
+        public nextParts: number;
         private _imageCrop: wwa_data.Coord;
         private _secondImageCrop: wwa_data.Coord;
-        private _soundNumber: number;
-        public nextParts: number;
         private _properties: PictureProperties;
         private _anims: { [key: string]: Animation };
         private _accelProperties: { [key: string]: Array<string> };
@@ -241,74 +237,52 @@ module wwa_picture {
         private _hasNoWaitTime: boolean;
         private _animationIntervalID: number;
         /**
-         * @param parent ピクチャを格納するピクチャデータ
-         * @param pictureParts ピクチャのプロパティが格納されているパーツ(番号とID)
-         * @param triggerParts 呼び出し元のパーツ(番号と種類、位置)
+         * @param _parent ピクチャを格納するピクチャデータ
+         * @param _pictureParts ピクチャのプロパティが格納されているパーツ(番号とID)
+         * @param _triggerParts 呼び出し元のパーツ(番号と種類、位置)
          * @param imgCropX イメージの参照先のX座標です。
          * @param imgCropY イメージの参照先のY座標です。
          * @param secondImgCropX イメージの第2参照先のX座標で、アニメーションが設定されている場合に使います。
          * @param secondImgCropY イメージの第2参照先のY座標で、アニメーションが設定されている場合に使います。
-         * @param soundNumber サウンド番号です。0の場合は鳴りません。
-         * @param waitTime 待ち時間です。10で1秒になります。
+         * @param _soundNumber サウンド番号です。0の場合は鳴りません。
+         * @param _waitTime 待ち時間です。10で1秒になります。
          * @param message ピクチャを表示するパーツのメッセージです。各行を配列にした形で設定します。
          * @param autoStart インスタンス作成時にピクチャを自動で開始するか
          */
         constructor(
-        parent: PictureData,
-        pictureParts: PicturePointer, triggerParts: wwa_data.PartsPointer,
+        private _parent: PictureData,
+        private _pictureParts: PicturePointer, private _triggerParts: wwa_data.PartsPointer,
         imgCropX: number, imgCropY: number,
         secondImgCropX: number, secondImgCropY: number,
-        soundNumber: number, waitTime: number,
+        private _soundNumber: number, private _waitTime: number,
         message: Array<string>, autoStart: boolean = false) {
-            this._parent = parent;
-            this._pictureParts = pictureParts;
-            this._triggerParts = triggerParts;
             this._imageCrop = new wwa_data.Coord(imgCropX, imgCropY);
             this._secondImageCrop = new wwa_data.Coord(secondImgCropX, secondImgCropY);
-            this._soundNumber = soundNumber;
-            this._properties = {
-                pos: new Pos(),
-                time: new Time(waitTime),
-                time_anim: new AnimationTimer(() => {
-                    this.startAnimation();
-                }, () => {
-                    this.stopAnimation();
-                }),
-                wait: new Wait(this._triggerParts.ID, () => {
-                    this._parent.parentWWA.stopPictureWaiting(this);
-                    if (this._properties.wait.isSetPutParts) {
-                        this.appearParts(this._properties.wait.appearPartsPointer);
-                    }
-                }),
-                next: new Next(pictureParts.number, pictureParts.id),
-                size: new CoordProperty(Consts.CHIP_SIZE, Consts.CHIP_SIZE),
-                clip: new CoordProperty(1, 1),
-                angle: new Angle(),
-                repeat: new Repeat(),
-                interval: new Interval(),
-                opacity: new Opacity(),
-                text: new Text(),
-                font: new Font(),
-                color: new Color()
-            };
             this._anims = {};
             this._accelProperties = {};
+
             this._isVisible = false;
             this._isTimeout = false;
-            if (waitTime <= 0) {
-                this._hasNoWaitTime = true;
-            } else {
-                this._hasNoWaitTime = false;
-            }
+            this._hasNoWaitTime = this._waitTime <= 0;
             this._animationIntervalID = null;
 
+            let stringProperties = {};
             message.forEach((line, index) => {
-                this.createProperty(line);
+                let stringProperty = new StringProperty(line);
+                stringProperties[stringProperty.name] = stringProperty;
             }, this);
 
             for (let propertyName in PropertyTable) {
-                if (propertyName in this._properties) {
-                    // TODO: 上記で作った StringProperty を使ってプロパティをセットする
+                let createdProperty = PropertyTable[propertyName](stringProperties[propertyName]);
+                if (typeof this._properties[propertyName] !== typeof createdProperty) {
+                    throw new Error("作成したプロパティとの型が違います！");
+                }
+                this._properties[propertyName] = PropertyTable[propertyName](stringProperties[propertyName]);
+            }
+
+            for (let animationName in AnimationTable) {
+                if (animationName in stringProperties) {
+                    this._anims[animationName] = AnimationTable[animationName](stringProperties[animationName]);
                 }
             }
 
@@ -320,30 +294,7 @@ module wwa_picture {
                 this.start();
             }
         }
-        /** プロパティを表記した1行からプロパティを生成します。
-         * @param line プロパティを表記した1行
-         */
-        public createProperty(line: string) {
-            let property = new StringProperty(line);
-            if (property.name in PropertyTable) {
-                PropertyTable[property.name](property, this._properties);
-            } else if (property.name in AnimationTable) {
-                this.createAnimation(property.name, AnimationTable[property.name](property));
-            } else {
-                throw new Error("指定したプロパティは存在しません！: " + property.name);
-            }
-        }
-        /** 種類が決まったプロパティをピクチャに割り当てます。
-         * @param type プロパティの種類名です。
-         * @param value プロパティの内容を記述した配列です。
-         */
-        public setProperty(type: string, value: Array<string>) {
-            if (type in this._properties) {
-                this._properties[type].setProperty(value);
-            } else {
-                throw new Error("指定したプロパティが無効です！: " + type);
-            }
-        }
+
         /**
          * 文字列からプロパティを取得します。
          * @param type プロパティのタイプ
@@ -355,32 +306,6 @@ module wwa_picture {
             } else {
                 throw new Error(`${type} のプロパティが見つかりません。`);
             }
-        }
-        /**
-         * アニメーションをピクチャ内の配列に追加します。
-         * @param type アニメーションの種類名
-         * @param anim アニメーションのインスタンス
-         */
-        public createAnimation(type: string, anim: Animation) {
-            this._anims[type] = anim;
-        }
-        /**
-         * 種類が決まったアニメーションをピクチャに割り当てます
-         * @param type アニメーションの種類名(クラスの名前をそのまま使います)
-         * @param animation アニメーションのインスタンス
-         * @param value アニメーションの内容を記したプロパティの配列
-         */
-        public setAnimation(type: string, animation: Animation, value: Array<string>) {
-            animation.setProperty(value);
-            this.createAnimation(type, animation);
-        }
-        /**
-         * 種類が決まった加速の情報をピクチャに一旦保存します
-         * @param type アニメーションの種類名
-         * @param value 加速の内容を記したプロパティの配列
-         */
-        public setAccel(type: string, value: Array<string>) {
-            this._accelProperties[type] = value;
         }
         
         /**
@@ -441,7 +366,10 @@ module wwa_picture {
          * @param appearPartsPointer 
          */
         public appearParts(appearPartsPointer: wwa_data.PartsPonterWithStringPos) {
-            this._parent.parentWWA.appearPartsEval(this._triggerParts.pos, this._properties.wait.appearPartsPointer.x, this._properties.wait.appearPartsPointer.y, this._triggerParts.ID, this._triggerParts.type);
+            this._parent.parentWWA.stopPictureWaiting(this);
+            if (this._properties.wait.isSetPutParts) {
+                this._parent.parentWWA.appearPartsEval(this._triggerParts.pos, this._properties.wait.appearPartsPointer.x, this._properties.wait.appearPartsPointer.y, this._triggerParts.ID, this._triggerParts.type);
+            }
         }
 
         /**
@@ -612,6 +540,33 @@ module wwa_picture {
         text: Text,
         font: Font,
         color: Color
+    }
+
+    export interface PictureAnimations {
+        anim_straight: StraightAnimation,
+        anim_circle: CircleAnimation,
+        anim_zoom: Zoom,
+        anim_rotate: Rotate,
+        anim_fade: Fade
+    }
+
+    export class PictureProperties {
+        private _pos: Pos;
+        private _time: Time;
+        private _animationTime: AnimationTimer;
+        private _waitTime: Wait;
+        private _size: Size;
+        private _clip: Clip;
+        private _angle: Angle;
+        private _repeat: Repeat;
+        private _interval: Interval;
+        private _opacity: Opacity;
+        private _text: Text;
+        private _font: Font;
+        private _color: Color;
+        constructor() {
+
+        }
     }
 
     export class StringProperty {

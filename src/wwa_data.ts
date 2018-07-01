@@ -281,7 +281,7 @@ module wwa_data {
         private _isRelative: boolean;
         /**
          * 相対値です。
-         * @param str 
+         * @param str 入力となる文字列
          */
         constructor(str: string) {
             if (!RelativeValue.CheckValue(str)) {
