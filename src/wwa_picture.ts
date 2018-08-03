@@ -126,119 +126,28 @@ module wwa_picture {
         "bottom"
     ];
     export class PictureData {
-        private _wwa: wwa_main.WWA;
-        private _pictures: Array<Picture>;
-        /** ピクチャを複数格納するクラスです。
-         * @param size ピクチャが格納できる個数を指定します。
-         */
-        constructor(wwa: wwa_main.WWA, size: number) {
-            this._wwa = wwa;
-            this._pictures = new Array(size);
-        }
-        /**
-         * 指定したIDがデータの範囲内か確認します。
-         * @param id ID(0から指定)
-         */
-        public checkID(id: number): boolean {
-            if (id < 0 || id >= this._pictures.length) {
-                throw new Error("指定したIDが範囲外です。");
-            }
-            return true;
-        }
-        /**
-         * 指定したIDのピクチャが空でないか確認します
-         * @param id ID(0から指定)
-         */
-        public isEmpty(id: number): boolean {
-            if (this._pictures[id] === void 0) {
-                return true;
-            }
-            return false;
-        }
-        /**
-         * ピクチャのデータにピクチャを指定します。
-         * @param picture 作成するピクチャのインスタンス
-         * @param id ID(0から指定)
-         */
-        public setPicture(picture: Picture, id: number): void {
-            this.checkID(id);
-            this._pictures[id] = picture;
-        }
-        /**
-         * 指定したIDのピクチャを削除します。
-         * @param id ID(0から指定)
-         */
-        public removePicture(id: number) {
-            this._pictures[id] = void 0;
-        }
-        /**
-         * 格納しているピクチャすべての動きを開始します。
-         */
-        public start(): void {
-            this._pictures.forEach((picture, id) => {
-                if (!this.isEmpty(id)) {
-                    picture.start();
-                }
-            }, this);
-        }
-        /**
-         * 指定したIDのピクチャの動きを開始します。
-         * @param id (0から指定)
-         */
-        public startPicture(id: number): void {
-            this.checkID(id);
-            this._pictures[id].start();
-        }
-        /**
-         * 格納しているピクチャすべての動きを止めます。
-         */
-        public stop() {
-            this._pictures.forEach((picture, id) => {
-                if (!this.isEmpty(id)) {
-                    picture.stop();
-                }
-            }, this);
-        }
-        /**
-         * 格納しているピクチャすべてを動かします。
-         */
-        public update(): void {
-            this._pictures.forEach((picture, id) => {
-                if (!this.isEmpty(id)) {
-                    picture.update(picture);
-                }
-            });
-        }
-        /**
-         * 指定したIDのピクチャを返します。
-         * @param id ID(0から指定)
-         */
-        public getPicture(id: number): Picture {
-            this.checkID(id);
-            return this._pictures[id];
-        }
-
-        get parentWWA(): wwa_main.WWA {
-            return this._wwa;
-        }
-    }
-    export class Picture {
         public static isPrimaryAnimationTime: boolean = true;
-        // 初期設定
-        public nextParts: number;
-        private _imageCrop: wwa_data.Coord;
-        private _secondImageCrop: wwa_data.Coord;
-        private _properties: PictureProperties;
-        private _anims: { [key: string]: Animation };
-        private _accelProperties: { [key: string]: Array<string> };
+        private _imageCropPos: wwa_data.Coord;
+        private _secondImageCropPos: wwa_data.Coord;
+
+        private _delayDisplayTime: wwa_data.Timer;
+        private _displayTime: wwa_data.Timer;
+        private _delayAnimationTime: wwa_data.Timer;
+        private _animationTime: wwa_data.Timer;
+        private _displayText: Text;
+
+        private _pictures: [Picture];
+        private _animations: { [key: string]: Animation };
+
         // 内部制御用
         private _isVisible: boolean;
         private _isTimeout: boolean;
         private _hasNoWaitTime: boolean;
         private _animationIntervalID: number;
+
         /**
-         * @param _parent ピクチャを格納するピクチャデータ
-         * @param _pictureParts ピクチャのプロパティが格納されているパーツ(番号とID)
+         * @param _parentWWA ピクチャを格納するピクチャデータ
+         * @param _picturePropertiesParts ピクチャのプロパティが格納されているパーツ(番号とID)
          * @param _triggerParts 呼び出し元のパーツ(番号と種類、位置)
          * @param imgCropX イメージの参照先のX座標です。
          * @param imgCropY イメージの参照先のY座標です。
@@ -250,16 +159,21 @@ module wwa_picture {
          * @param autoStart インスタンス作成時にピクチャを自動で開始するか
          */
         constructor(
-        private _parent: PictureData,
-        private _pictureParts: PicturePointer, private _triggerParts: wwa_data.PartsPointer,
-        imgCropX: number, imgCropY: number,
-        secondImgCropX: number, secondImgCropY: number,
-        private _soundNumber: number, private _waitTime: number,
-        message: Array<string>, autoStart: boolean = false) {
-            this._imageCrop = new wwa_data.Coord(imgCropX, imgCropY);
-            this._secondImageCrop = new wwa_data.Coord(secondImgCropX, secondImgCropY);
-            this._anims = {};
-            this._accelProperties = {};
+            private _parentWWA: wwa_main.WWA,
+            private _picturePropertiesParts: PicturePointer,
+            private _triggerParts: wwa_data.PartsPointer,
+            imgCropX: number,
+            imgCropY: number,
+            secondImgCropX: number,
+            secondImgCropY: number,
+            private _soundNumber: number,
+            private _waitTime: number,
+            message: [string],
+            autoStart: boolean = false
+        ) {
+            this._imageCropPos = new wwa_data.Coord(imgCropX, imgCropY);
+            this._secondImageCropPos = new wwa_data.Coord(secondImgCropX, secondImgCropY);
+            this._animations = {};
 
             this._isVisible = false;
             this._isTimeout = false;
@@ -272,6 +186,7 @@ module wwa_picture {
                 stringProperties[stringProperty.name] = stringProperty;
             }, this);
 
+            // TODO: 下記を修正する
             for (let propertyName in PropertyTable) {
                 let createdProperty = PropertyTable[propertyName](stringProperties[propertyName]);
                 if (typeof this._properties[propertyName] !== typeof createdProperty) {
@@ -282,12 +197,8 @@ module wwa_picture {
 
             for (let animationName in AnimationTable) {
                 if (animationName in stringProperties) {
-                    this._anims[animationName] = AnimationTable[animationName](stringProperties[animationName]);
+                    this._animations[animationName] = AnimationTable[animationName](stringProperties[animationName]);
                 }
-            }
-
-            for (var accelType in this._accelProperties) {
-                this._anims[accelType].setAccel(this._accelProperties[accelType]);
             }
 
             if (autoStart) {
@@ -296,29 +207,16 @@ module wwa_picture {
         }
 
         /**
-         * 文字列からプロパティを取得します。
-         * @param type プロパティのタイプ
-         * @returns プロパティのインスタンス
-         */
-        public getProperty(type: string): Property {
-            if (type in this._properties) {
-                return this._properties[type];
-            } else {
-                throw new Error(`${type} のプロパティが見つかりません。`);
-            }
-        }
-        
-        /**
          * ピクチャを動かします。
          */
-        public update(self: Picture) {
-            for (var animationType in self._anims) {
-                self._anims[animationType].update();
+        public update() {
+            for (let animationType in this._animations) {
+                this._animations[animationType].update();
             }
         }
 
         /**
-         * ピクチャの表示を開始します。t
+         * ピクチャの表示を開始します。
          */
         public disp() {
             this._isVisible = true;
@@ -363,75 +261,12 @@ module wwa_picture {
         }
         /**
          * パーツを出現します。
-         * @param appearPartsPointer 
+         * @param appearPartsPointer
          */
         public appearParts(appearPartsPointer: wwa_data.PartsPonterWithStringPos) {
-            this._parent.parentWWA.stopPictureWaiting(this);
             if (this._properties.wait.isSetPutParts) {
                 this._parent.parentWWA.appearPartsEval(this._triggerParts.pos, this._properties.wait.appearPartsPointer.x, this._properties.wait.appearPartsPointer.y, this._triggerParts.ID, this._triggerParts.type);
             }
-        }
-
-        /**
-         * ピクチャのベース位置を移動します。
-         * @param x 移動するX座標
-         * @param y 移動するY座標
-         */
-        public move(x: number, y: number) {
-            this._properties.pos.move(x, y); 
-        }
-        /**
-         * ピクチャを一時的に移動します。
-         * @param x 移動するX座標
-         * @param y 移動するY座標
-         */
-        public jump(x: number, y: number) {
-            this._properties.pos.x = x;
-            this._properties.pos.y = y;
-        }
-        /**
-         * ピクチャのサイズを変えます。
-         * @param x 拡大するX座標
-         * @param y 拡大するY座標
-         */
-        public resize(x: number, y: number) {
-            this._properties.size.x += x;
-            this._properties.size.y += y;
-            this._properties.pos.x -= x / 2;
-            this._properties.pos.y -= y / 2;
-        }
-        /**
-         * ピクチャを回転します。
-         * @param degree 回転する角度
-         */
-        public rotate(degree: number) {
-            this._properties.angle.rotate(degree);
-        }
-        /**
-         * ピクチャの透明度を変えます。
-         * @param value 変更する透明度
-         */
-        public fade(value: number) {
-            this._properties.opacity.value += value;
-        }
-
-        get isVisible(): boolean {
-            return this._isVisible;
-        }
-        get isTimeout(): boolean {
-            return this._isTimeout;
-        }
-        get isAnimatable(): boolean {
-            return this._properties.time_anim.isAnimatable;
-        }
-        get hasNoWaitTime(): boolean {
-            return this._hasNoWaitTime;
-        }
-        get hasSecondaryImage(): boolean {
-            return this._secondImageCrop.x != 0 || this._secondImageCrop.y != 0;
-        }
-        get hasAngle(): boolean {
-            return this._properties.angle.degree !== 0;
         }
 
         get imageCrop(): wwa_data.Coord {
@@ -448,36 +283,6 @@ module wwa_picture {
         }
         get isSetWait(): boolean {
             return this._properties.wait.enabled;
-        }
-        get width(): number {
-            if (this.isFill) {
-                return Consts.CANVAS_WIDTH;
-            }
-            return (this.repeat.x + this.interval.x) * this.size.x - this.interval.x;
-        }
-        get height(): number {
-            if (this.isFill) {
-                return Consts.CANVAS_HEIGHT;
-            }
-            return (this.repeat.y + this.interval.y) * this.size.y - this.interval.y;
-        }
-        get pos(): wwa_data.Coord {
-            return this._properties.pos;
-        }
-        get basePos(): wwa_data.Coord {
-            return this._properties.pos.basePos;
-        }
-        get size(): wwa_data.Coord {
-            return this._properties.size;
-        }
-        get cropSize(): wwa_data.Coord {
-            return this._properties.clip;
-        }
-        get opacity(): number {
-            return this._properties.opacity.value;
-        }
-        get angle(): number {
-            return this._properties.angle.rad;
         }
         get repeat(): wwa_data.Coord {
             if (this.isFill) {
@@ -512,6 +317,89 @@ module wwa_picture {
         }
         get fillStyle(): string {
             return this._properties.color.cssColorValue;
+        }
+    }
+    export class Picture {
+        private _pos: wwa_data.Coord;
+        private _size: wwa_data.Coord;
+        private _angle: wwa_data.Angle;
+        private _opacity: wwa_data.Rate;
+
+        /**
+         * ピクチャのベース位置を移動します。
+         * @param x 移動するX座標
+         * @param y 移動するY座標
+         */
+        public move(x: number, y: number) {
+            this._pos.move(x, y);
+        }
+        /**
+         * ピクチャを一時的に移動します。
+         * @param x 移動するX座標
+         * @param y 移動するY座標
+         */
+        public jump(x: number, y: number) {
+            this._pos.x = x;
+            this._pos.y = y;
+        }
+        /**
+         * ピクチャのサイズを変えます。
+         * @param x 拡大するX座標
+         * @param y 拡大するY座標
+         */
+        public resize(x: number, y: number) {
+            this._size.x += x;
+            this._size.y += y;
+            this._pos.x -= x / 2;
+            this._pos.y -= y / 2;
+        }
+        /**
+         * ピクチャを回転します。
+         * @param degree 回転する角度
+         */
+        public rotate(degree: number) {
+            this._angle.rotate(degree);
+        }
+        /**
+         * ピクチャの透明度を変えます。
+         * @param value 変更する透明度
+         */
+        public fade(value: number) {
+            this._opacity.value += value;
+        }
+
+        get hasAngle(): boolean {
+            return this._angle.degree !== 0;
+        }
+        get width(): number {
+            if (this.isFill) {
+                return Consts.CANVAS_WIDTH;
+            }
+            return (this.repeat.x + this.interval.x) * this.size.x - this.interval.x;
+        }
+        get height(): number {
+            if (this.isFill) {
+                return Consts.CANVAS_HEIGHT;
+            }
+            return (this.repeat.y + this.interval.y) * this.size.y - this.interval.y;
+        }
+        get pos(): wwa_data.Coord {
+            return this._pos;
+        }
+        get basePos(): wwa_data.Coord {
+            return this._pos.basePos;
+        }
+        get size(): wwa_data.Coord {
+            return this._size;
+        }
+        get cropSize(): wwa_data.Coord {
+            return this._clip;
+        }
+        get opacity(): number {
+            return this._opacity.value;
+        }
+        get angle(): number {
+            return this._angle.rad;
         }
     }
     /**
