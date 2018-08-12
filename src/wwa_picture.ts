@@ -127,14 +127,18 @@ module wwa_picture {
     ];
     export class PictureData {
         public static isPrimaryAnimationTime: boolean = true;
-        private _imageCropPos: wwa_data.Coord;
-        private _secondImageCropPos: wwa_data.Coord;
 
+        private _nextPicturePartsID: number;
         private _delayDisplayTime: wwa_data.Timer;
         private _displayTime: wwa_data.Timer;
         private _delayAnimationTime: wwa_data.Timer;
         private _animationTime: wwa_data.Timer;
-        private _displayText: Text;
+        private _waitTime: wwa_data.Timer;
+        private _displayText: {
+            text: string,
+            font: string,
+            color: wwa_data.Color
+        };
 
         private _pictures: [Picture];
         private _animations: { [key: string]: Animation };
@@ -149,12 +153,12 @@ module wwa_picture {
          * @param _parentWWA ピクチャを格納するピクチャデータ
          * @param _picturePropertiesParts ピクチャのプロパティが格納されているパーツ(番号とID)
          * @param _triggerParts 呼び出し元のパーツ(番号と種類、位置)
-         * @param imgCropX イメージの参照先のX座標です。
-         * @param imgCropY イメージの参照先のY座標です。
-         * @param secondImgCropX イメージの第2参照先のX座標で、アニメーションが設定されている場合に使います。
-         * @param secondImgCropY イメージの第2参照先のY座標で、アニメーションが設定されている場合に使います。
+         * @param _imgCropX イメージの参照先のX座標です。
+         * @param _imgCropY イメージの参照先のY座標です。
+         * @param _secondImgCropX イメージの第2参照先のX座標で、アニメーションが設定されている場合に使います。
+         * @param _secondImgCropY イメージの第2参照先のY座標で、アニメーションが設定されている場合に使います。
          * @param _soundNumber サウンド番号です。0の場合は鳴りません。
-         * @param _waitTime 待ち時間です。10で1秒になります。
+         * @param waitTime 待ち時間です。10で1秒になります。
          * @param message ピクチャを表示するパーツのメッセージです。各行を配列にした形で設定します。
          * @param autoStart インスタンス作成時にピクチャを自動で開始するか
          */
@@ -162,17 +166,15 @@ module wwa_picture {
             private _parentWWA: wwa_main.WWA,
             private _picturePropertiesParts: PicturePointer,
             private _triggerParts: wwa_data.PartsPointer,
-            imgCropX: number,
-            imgCropY: number,
-            secondImgCropX: number,
-            secondImgCropY: number,
+            private _imgCropX: number,
+            private _imgCropY: number,
+            private _secondImgCropX: number,
+            private _secondImgCropY: number,
             private _soundNumber: number,
-            private _waitTime: number,
+            waitTime: number,
             message: [string],
             autoStart: boolean = false
         ) {
-            this._imageCropPos = new wwa_data.Coord(imgCropX, imgCropY);
-            this._secondImageCropPos = new wwa_data.Coord(secondImgCropX, secondImgCropY);
             this._animations = {};
 
             this._isVisible = false;
@@ -220,9 +222,9 @@ module wwa_picture {
          */
         public disp() {
             this._isVisible = true;
-            this._properties.time_anim.start();
-            this._properties.wait.start();
-            this._parent.parentWWA.playSound(this._soundNumber);
+            this._animationTime.start();
+            this._waitTime.start();
+            this._parentWWA.playSound(this._soundNumber);
         }
         /**
          * ピクチャの表示を終了します。
@@ -236,11 +238,10 @@ module wwa_picture {
          * ピクチャのタイマーを開始します。
          */
         public start() {
-            this._properties.time.start();
-            if (this.isVisible) {
-                this._properties.time_anim.start();
+            this._displayTime.start();
+            if (this._isVisible) {
+                this._animationTime.start();
             }
-            this._parent.parentWWA.startPictureWaiting(this);
         }
         public startAnimation() {
             if (this._animationIntervalID === null) {
@@ -251,8 +252,8 @@ module wwa_picture {
          * ピクチャのタイマーを止めます。
          */
         public stop() {
-            this._properties.time.stop();
-            this._properties.time_anim.stop();
+            this._displayTime.stop();
+            this._animationTime.stop();
         }
         public stopAnimation() {
             if (this._animationIntervalID !== null) {
@@ -262,18 +263,21 @@ module wwa_picture {
         /**
          * パーツを出現します。
          * @param appearPartsPointer
+         * @todo 終了後配置するパーツの番号を記憶する変数を作る。
          */
         public appearParts(appearPartsPointer: wwa_data.PartsPonterWithStringPos) {
-            if (this._properties.wait.isSetPutParts) {
+            if (this.isSetPutParts) {
                 this._parent.parentWWA.appearPartsEval(this._triggerParts.pos, this._properties.wait.appearPartsPointer.x, this._properties.wait.appearPartsPointer.y, this._triggerParts.ID, this._triggerParts.type);
             }
         }
 
         get imageCrop(): wwa_data.Coord {
-            if (this.hasSecondaryImage) {
-                return Picture.isPrimaryAnimationTime ? this._imageCrop : this._secondImageCrop;
+            if (this._secondImgCropX !== 0 || this._secondImgCropY !== 0) {
+                return PictureData.isPrimaryAnimationTime
+                    ? new wwa_data.Coord(this._imgCropX, this._imgCropY)
+                    : new wwa_data.Coord(this._secondImgCropY, this._secondImgCropY);
             }
-            return this._imageCrop;
+            return new wwa_data.Coord(this._imgCropX, this._imgCropY);
         }
         get soundNumber(): number {
             return this._soundNumber;
