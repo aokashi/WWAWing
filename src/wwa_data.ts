@@ -630,6 +630,120 @@ module wwa_data {
         }
     }
 
+    export class StringMacro {
+        private _macroName: string;
+        private _macroProperties: string[];
+        /**
+         * マクロ文を表記した文字列の配列です。
+         * @param {string} macroString マクロ文を表記した文字列
+         * @param {boolean} needDollar ドル記号が必要か
+         */
+        public constructor(macroString: string, needDollar: boolean = true) {
+            let macro;
+            if (needDollar) {
+                macro = macroString.match(/^\$([a-zA-Z_][a-zA-Z0-9_]*)=(.*)$/)
+            } else {
+                macro = macroString.match(/^([a-zA-Z_][a-zA-Z0-9_]*)=(.*)/);
+            }
+            if (macro === null || macro.length !== 3 || macro[1] !== '=') {
+                throw new Error("マクロ文またはプロパティの表記になっていません");
+            }
+
+            this._macroName = macro[0];
+            this._macroProperties = macro[2].match(/"[^"]*"|[^,]+/g);
+        }
+
+        /**
+         * 指定した場所が今のプロパティに用意されているか確認します。
+         * @param {number} argIndex
+         * @returns {boolean} 用意されていれば true, 無ければ false
+         * @private
+         */
+        private _checkPropertyLength(argIndex: number) {
+            return argIndex > this._macroProperties.length;
+        }
+
+        /**
+         * マクロの名前を出力します。
+         * @returns {string}
+         */
+        public get macroName() {
+            return this._macroName;
+        }
+
+        /**
+         * 整数値でプロパティを取得します。
+         * @param {number} argIndex プロパティの取る場所
+         * @param {number} defaultValue 見つからなかった場合の既定値
+         * @returns {number}
+         */
+        public getIntValue(argIndex: number, defaultValue: number) {
+            if (!this._checkPropertyLength(argIndex)) {
+                return defaultValue;
+            }
+            return parseInt(this._macroProperties[argIndex]);
+        }
+
+        /**
+         * 浮動小数点でプロパティを取得します。
+         * @param {number} argIndex
+         * @param {number} defaultValue
+         * @returns {number}
+         */
+        public getFloatValue(argIndex: number, defaultValue: number) {
+            if (!this._checkPropertyLength(argIndex)) {
+                return defaultValue;
+            }
+            return parseFloat(this._macroProperties[argIndex]);
+        }
+
+        /**
+         * 文字列でプロパティを取得します。
+         * @param {number} argIndex
+         * @param {string} defaultValue
+         * @returns {string}
+         */
+        public getStringValue(argIndex: number, defaultValue: string) {
+            if (!this._checkPropertyLength(argIndex)) {
+                return defaultValue;
+            }
+            return StringMacro.trimString(this._macroProperties[argIndex], '"');
+        }
+
+        /**
+         * ブール値でプロパティを取得します。
+         * @param {number} argIndex
+         * @param {boolean} defaultValue
+         * @returns {boolean}
+         */
+        public getBooleanValue(argIndex: number, defaultValue: boolean) {
+            if (!this._checkPropertyLength(argIndex)) {
+                return defaultValue;
+            }
+            let value = parseInt(this._macroProperties[argIndex]);
+            if (value === 1) {
+                return true;
+            } else if (value === 0) {
+                return false;
+            } else {
+                throw new Error("0か1でプロパティを入力してください");
+            }
+        }
+
+        /**
+         * 文字列の両端の記号を切り取ります
+         * @param str 切り取られる文字列(両端に対象の記号がないと正常に処理できません)
+         * @param trimmingChar 切り取り対象の記号
+         */
+        public static trimString(str: string, trimmingChar: string): string {
+            if (str.charAt(0) === trimmingChar && str.charAt(str.length - 1) === trimmingChar) {
+                return str.slice(1, -1);
+            } else {
+                throw new Error("両端に切り取る記号がありません");
+            }
+        }
+    }
+
     /**
      * パーツを指すインタフェースです。
      */
