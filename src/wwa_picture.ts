@@ -16,11 +16,19 @@ module wwa_picture {
         "alphabetic",
         "bottom"
     ];
-    export class PictureData {
+    export class Picture {
         public static isPrimaryAnimationTime: boolean = true;
 
-        private _nextPicturePartsID: number;
+        // プロパティ用
+        private _pos: wwa_data.Coord;
+        private _size: wwa_data.Coord;
         private _imgCropSize: wwa_data.Coord;
+        private _repeat: wwa_data.Coord;
+        private _repeatInterval: wwa_data.Coord;
+        private _angle: wwa_data.Angle;
+        private _opacity: wwa_data.Rate;
+
+        private _nextPicturePartsID: number;
         private _delayDisplayTime: wwa_data.Timer;
         private _displayTime: wwa_data.Timer;
         private _delayAnimationTime: wwa_data.Timer;
@@ -30,7 +38,6 @@ module wwa_picture {
         private _displayTextFont: string;
         private _displayTextColor: wwa_data.Color;
 
-        private _pictures: Picture[];
         private _animations: { [key: string]: Animation };
 
         // 内部制御用
@@ -38,7 +45,6 @@ module wwa_picture {
 
         /**
          * @param _parentWWA ピクチャを格納するピクチャデータ
-         * @param _picturePropertiesParts ピクチャのプロパティが格納されているパーツ(番号とID)
          * @param _triggerParts 呼び出し元のパーツ(番号と種類、位置)
          * @param _imgCropX イメージの参照先のX座標です。
          * @param _imgCropY イメージの参照先のY座標です。
@@ -51,7 +57,6 @@ module wwa_picture {
          */
         constructor(
             private _parentWWA: wwa_main.WWA,
-            private _picturePropertiesParts: PicturePointer,
             private _triggerParts: wwa_data.PartsPointer,
             private _imgCropX: number,
             private _imgCropY: number,
@@ -59,21 +64,23 @@ module wwa_picture {
             private _secondImgCropY: number,
             private _soundNumber: number,
             waitTime: number,
-            message: [string],
+            message: string[],
             autoStart: boolean = false
         ) {
-            // PictureData が持つプロパティの初期化
-            this._imgCropSize = new wwa_data.Coord(0, 0);
+            this._pos = new wwa_data.Coord(0, 0);
+            this._size = new wwa_data.Coord(Consts.CHIP_SIZE, Consts.CHIP_SIZE);
+            this._imgCropSize = new wwa_data.Coord(1, 1);
+            this._repeat = new wwa_data.Coord(1, 1);
+            this._angle = new wwa_data.Angle(0);
+            this._opacity = new wwa_data.Rate(0);
 
             // アニメーション関係の初期化
             this._animations = {};
             this._animationIntervalID = null;
 
-            let picture = new Picture();
             message.forEach((line, index) => {
-                this._createPicture(line, picture);
+                this._createPicture(line);
             }, this);
-            this._pictures = [picture];
 
             if (autoStart) {
                 this.start();
@@ -83,83 +90,70 @@ module wwa_picture {
         /**
          * ピクチャのプロパティをセットします
          * @param {string} propertyString プロパティを表記した一行分の文字列
-         * @param {wwa_picture.Picture} picture プロパティがセットされるピクチャ
          * @private
          */
-        private _createPicture(propertyString: string, picture: Picture) {
-            let propertyTable: { [key: string]: (property: StringMacro, picture: Picture) => void } = {
-                pos: (property, picture) => {
-                    let x = property.getIntValue(0);
-                    let y = property.getIntValue(1);
-
-                    picture.jump(x, y);
+        private _createPicture(propertyString: string) {
+            let propertyTable: { [key: string]: (property: StringMacro) => void } = {
+                pos: (property) => {
+                    this._pos.x = property.getIntValue(0, 0);
+                    this._pos.y = property.getIntValue(1, 0);
                 },
-                time: (property, picture) => {
+                time: (property) => {
                     let time = property.getIntValue(0, 0);
                     // 内部のメソッドを作ってとりあえず頑張る
                 },
-                time_anim: (property, picture) => {
+                time_anim: (property) => {
                     let startTime = property.getIntValue(0, 0);
                     let endTime = property.getIntValue(1, 0);
                     // 同じく
                 },
-                wait: (property, picture) => {
+                wait: (property) => {
                     let waitTime = property.getIntValue(0, 0);
                     // 同じく
                 },
-                next: (property, picture) => {
+                next: (property) => {
                     this._nextPicturePartsID = property.getIntValue(0, 0);
                 },
-                size: (property, picture) => {
-                    let width = property.getIntValue(0, WWAConsts.CHIP_SIZE);
-                    let height = property.getIntValue(1, WWAConsts.CHIP_SIZE);
-
-                    picture.resizeAbsolute(width, height);
+                size: (property) => {
+                    this._size.x = property.getIntValue(0, WWAConsts.CHIP_SIZE);
+                    this._size.y = property.getIntValue(1, WWAConsts.CHIP_SIZE);
                 },
-                clip: (property, picture) => {
+                clip: (property) => {
                     this._imgCropSize.x = property.getIntValue(0, 1);
                     this._imgCropSize.y = property.getIntValue(1, 1);
                 },
-                repeat: (property, picture) => {
-                    let width = property.getIntValue(0);
-                    let height = property.getIntValue(1);
-                    // ピクチャのクローン機能を使わなくてはならないのでどうするか考える
+                repeat: (property) => {
+                    this._repeat.x = property.getIntValue(0, 1);
+                    this._repeat.y = property.getIntValue(1, 1);
+                    this._repeatInterval.x = property.getIntValue(2, 0);
+                    this._repeatInterval.y = property.getIntValue(3, 0);
                 },
-                interval: (property, picture) => {
-                    let width = property.getIntValue(0);
-                    let height = property.getIntValue(1);
-                    // 同じく
+                angle: (property) => {
+                    this._angle.value = property.getIntValue(0, 0);
                 },
-                angle: (property, picture) => {
-                    let angle = property.getIntValue(0, 0);
-
-                    picture.rotate(angle);
+                opacity: (property) => {
+                    this._opacity.value = property.getIntValue(0, 0);
                 },
-                opacity: (property, picture) => {
-                    let opacity = property.getIntValue(0, 0);
-
-                    picture.fadeAbsolute(opacity);
-                },
-                text: (property, picture) => {
+                text: (property) => {
                     this._displayText = property.getStringValue(0, "");
                     // TODO: 下記代入方法を考える
                     // this._displayTextAlign = property.getIntValue(1, );
                     // this._displayTextBaseline = property.getIntValue)2, );
                 },
-                text_var: (property, picture) => {
+                text_var: (property) => {
                     // WWAWing XEが搭載されたら実装します
                 },
-                font: (property, picture) => {
+                font: (property) => {
                     // TODO: 下記代入方法を考える
                     // this._displayTextSize = property.getIntValue(0, );
                     // this._displayTextWeight = property.getBooleanValue(1, );
                     // this._displayTextItalic = property.getBooleanValue(2, );
                     // this._displayTextFont = property.getStringValue(3, );
                 },
-                color: (property, picture) => {
-                    let r = property.getIntValue(0);
-                    let g = property.getIntValue(1);
-                    let b = property.getIntValue(2);
+                color: (property) => {
+                    let r = property.getIntValue(0, 0);
+                    let g = property.getIntValue(1, 0);
+                    let b = property.getIntValue(2, 0);
 
                     this._displayTextColor = new wwa_data.Color(r, g, b);
                 }
@@ -202,18 +196,10 @@ module wwa_picture {
             let property = new StringMacro(propertyString, false);
 
             if (property.macroName in propertyTable) {
-                propertyTable[property.macroName](property, picture);
+                propertyTable[property.macroName](property);
             } else if (property.macroName in animationTable) {
                 this._animations.push(animationTable[property.macroName](property));
             }
-        }
-
-        /**
-         * ピクチャを作成します。
-         * @param picture ピクチャのインスタンス
-         */
-        public registPicture(picture: Picture) {
-            this._pictures.push(picture);
         }
 
         /**
@@ -267,87 +253,6 @@ module wwa_picture {
 
         }
 
-        get imageCrop(): wwa_data.Coord {
-            if (this._secondImgCropX !== 0 || this._secondImgCropY !== 0) {
-                return PictureData.isPrimaryAnimationTime
-                    ? new wwa_data.Coord(this._imgCropX, this._imgCropY)
-                    : new wwa_data.Coord(this._secondImgCropY, this._secondImgCropY);
-            }
-            return new wwa_data.Coord(this._imgCropX, this._imgCropY);
-        }
-        get soundNumber(): number {
-            return this._soundNumber;
-        }
-        get nextPictures() {
-            // TODO: 実装する
-            return [];
-        }
-
-        get width(): number {
-            if (this.isFill) {
-                return Consts.CANVAS_WIDTH;
-            }
-            return (this.repeat.x + this.interval.x) * this.size.x - this.interval.x;
-        }
-        get height(): number {
-            if (this.isFill) {
-                return Consts.CANVAS_HEIGHT;
-            }
-            return (this.repeat.y + this.interval.y) * this.size.y - this.interval.y;
-        }
-
-        // TODO: ここより先は前の properties プロパティを持ってきているので修正する
-        get repeat(): wwa_data.Coord {
-            if (this.isFill) {
-                // 敷き詰める設定だと画面外から描画を開始する場合があるので、描画漏れ防止として 1 を足しています
-                return new wwa_data.Coord(Consts.FIELD_WIDTH + 1, Consts.FIELD_HEIGHT + 1);
-            }
-            return this._properties.repeat;
-        }
-        get cropSize(): wwa_data.Coord {
-            return this._imgCropSize;
-        }
-        get interval(): wwa_data.Coord {
-            return this._properties.interval;
-        }
-        get shift(): wwa_data.Coord {
-            return this._properties.interval.shift;
-        }
-        get isFill(): boolean {
-            return this._properties.repeat.isFill;
-        }
-        get chipSize(): wwa_data.Coord {
-            return new wwa_data.Coord(this.size.x + this.interval.x, this.size.y + this.interval.y);
-        }
-        get text(): string {
-            return this._properties.text.str;
-        }
-        get textAlign(): string {
-            return this._properties.text.align;
-        }
-        get textBaseline(): string {
-            return this._properties.text.baseline;
-        }
-        get font(): string {
-            return this._properties.font.font;
-        }
-        get fillStyle(): string {
-            return this._properties.color.cssColorValue;
-        }
-    }
-    export class Picture {
-        private _pos: wwa_data.Coord;
-        private _size: wwa_data.Coord;
-        private _angle: wwa_data.Angle;
-        private _opacity: wwa_data.Rate;
-
-        public constructor() {
-            this._pos = new wwa_data.Coord(0, 0);
-            this._size = new wwa_data.Coord(Consts.CHIP_SIZE, Consts.CHIP_SIZE);
-            this._angle = new wwa_data.Angle(0);
-            this._opacity = new wwa_data.Rate(1);
-        }
-
         /**
          * ピクチャのベース位置を移動します。
          * @param x 移動するX座標
@@ -378,15 +283,6 @@ module wwa_picture {
             this._pos.y -= y / 2;
         }
         /**
-         * ピクチャのサイズを絶対座標として変更します。位置の自動変更はありません。
-         * @param {number} x 横幅
-         * @param {number} y 縦幅
-         */
-        public resizeAbsolute(x: number, y: number) {
-            this._size.x = x;
-            this._size.y = y;
-        }
-        /**
          * ピクチャを回転します。
          * @param degree 回転する角度
          */
@@ -400,32 +296,56 @@ module wwa_picture {
         public fade(value: number) {
             this._opacity.value += value;
         }
-        /**
-         * ピクチャの透明度を絶対値として変えます。
-         * @param {number} value 変更する透明度
-         */
-        public fadeAbsolute(value: number) {
-            this._opacity.value = value;
+
+        get imageCrop(): wwa_data.Coord {
+            if (this._secondImgCropX !== 0 || this._secondImgCropY !== 0) {
+                return Picture.isPrimaryAnimationTime
+                    ? new wwa_data.Coord(this._imgCropX, this._imgCropY)
+                    : new wwa_data.Coord(this._secondImgCropY, this._secondImgCropY);
+            }
+            return new wwa_data.Coord(this._imgCropX, this._imgCropY);
+        }
+        get soundNumber(): number {
+            return this._soundNumber;
+        }
+        get nextPictures() {
+            // TODO: 実装する
+            return [];
         }
 
-        get hasAngle(): boolean {
-            return this._angle.degree !== 0;
+        get width(): number {
+            return (this.repeat.x + this.interval.x) * this._size.x - this._repeatInterval.x;
         }
-        get pos(): wwa_data.Coord {
-            return this._pos;
+        get height(): number {
+            return (this.repeat.y + this.interval.y) * this._size.y - this._repeatInterval.y;
         }
-        get basePos(): wwa_data.Coord {
-            // TODO: 実装する
+
+        get repeat(): wwa_data.Coord {
+            return this._repeat;
+        }
+        get cropSize(): wwa_data.Coord {
+            return this._imgCropSize;
+        }
+        get interval(): wwa_data.Coord {
+            return this._repeatInterval;
+        }
+        get chipSize(): wwa_data.Coord {
+            return new wwa_data.Coord(this._size.x + this._repeatInterval.x, this._size.y + this._repeatInterval.y);
+        }
+        get text(): string {
+            return this._displayText;
+        }
+        get textAlign(): string {
             return null;
         }
-        get size(): wwa_data.Coord {
-            return this._size;
+        get textBaseline(): string {
+            return null
         }
-        get opacity(): number {
-            return this._opacity.value;
+        get font(): string {
+            return this._displayTextFont;
         }
-        get angle(): number {
-            return this._angle.rad;
+        get fillStyle(): string {
+            return null;
         }
     }
 
@@ -459,6 +379,7 @@ module wwa_picture {
         private _size: wwa_data.Coord;
         private _speed: wwa_data.Angle;
         private _angle: wwa_data.Angle;
+        private _round: number;
         private _accel: {
             angle: wwa_data.Angle,
             round: number
@@ -482,7 +403,8 @@ module wwa_picture {
         public update(parent: Picture) {
             let x = Math.floor((Math.cos(this._angle.rad) * this._round));
             let y = Math.floor((Math.sin(this._angle.rad) * this._round));
-            parent.jump(x + this._parent.basePos.x, y + this._parent.basePos.y);
+            // TODO: basePos 辺りが実装できるようにする
+            // parent.jump(x + this._parent.basePos.x, y + this._parent.basePos.y);
             this._angle.rotate(this._speed.degree);
             this.accel();
         }
