@@ -119,7 +119,7 @@ module wwa_cgmanager {
         public drawPictureData(picture: wwa_picture.Picture, isSub: boolean = false): void {
             var ctx = isSub ? this._ctxSub : this._ctx;
             ctx.save();
-            if (picture.hasAngle) {
+            if (picture.angle != 0) {
                 let translateX = picture.pos.x + (picture.width / 2);
                 let translateY = picture.pos.y + (picture.height / 2);
                 ctx.translate(translateX, translateY);
@@ -149,10 +149,15 @@ module wwa_cgmanager {
             for (var y = 0; y < picture.repeat.y; y++) {
                 for (var x = 0; x < picture.repeat.x; x++) {
                     ctx.drawImage(
-                        this.getImage(), Consts.CHIP_SIZE * picture.imageCrop.x, Consts.CHIP_SIZE * picture.imageCrop.y,
-                        Consts.CHIP_SIZE * picture.cropSize.x, Consts.CHIP_SIZE * picture.cropSize.y,
-                        posX, posY,
-                        picture.size.x * picture.cropSize.x, picture.size.y * picture.cropSize.y
+                        this.getImage(),
+                        picture.cropPos.x,
+                        picture.cropPos.y,
+                        picture.cropSizeX,
+                        picture.cropSizeY,
+                        posX,
+                        posY,
+                        picture.size.x,
+                        picture.size.y
                     );
                     posX += picture.chipSize.x;
                     posY += picture.shift.y;

@@ -33,7 +33,6 @@ module wwa_picture {
         private _displayTime: wwa_data.Timer;
         private _delayAnimationTime: wwa_data.Timer;
         private _animationTime: wwa_data.Timer;
-        private _waitTime: wwa_data.Timer;
         private _displayText: string;
         private _displayTextFont: string;
         private _displayTextColor: wwa_data.Color;
@@ -51,7 +50,7 @@ module wwa_picture {
          * @param _secondImgCropX イメージの第2参照先のX座標で、アニメーションが設定されている場合に使います。
          * @param _secondImgCropY イメージの第2参照先のY座標で、アニメーションが設定されている場合に使います。
          * @param _soundNumber サウンド番号です。0の場合は鳴りません。
-         * @param waitTime 待ち時間です。10で1秒になります。
+         * @param delayDisplayTimeValue 待ち時間です。10で1秒になります。
          * @param message ピクチャを表示するパーツのメッセージです。各行を配列にした形で設定します。
          * @param autoStart インスタンス作成時にピクチャを自動で開始するか
          */
@@ -63,7 +62,7 @@ module wwa_picture {
             private _secondImgCropX: number,
             private _secondImgCropY: number,
             private _soundNumber: number,
-            waitTime: number,
+            delayDisplayTimeValue: number,
             message: string[],
             autoStart: boolean = false
         ) {
@@ -74,11 +73,13 @@ module wwa_picture {
             this._angle = new wwa_data.Angle(0);
             this._opacity = new wwa_data.Rate(0);
 
+            this._delayDisplayTime = new wwa_data.Timer(delayDisplayTimeValue);
+
             // アニメーション関係の初期化
             this._animations = {};
             this._animationIntervalID = null;
 
-            message.forEach((line, index) => {
+            message.forEach((line) => {
                 this._createPicture(line);
             }, this);
 
@@ -100,12 +101,13 @@ module wwa_picture {
                 },
                 time: (property) => {
                     let time = property.getIntValue(0, 0);
-                    // 内部のメソッドを作ってとりあえず頑張る
+                    this._displayTime.setTime(time);
                 },
                 time_anim: (property) => {
                     let startTime = property.getIntValue(0, 0);
                     let endTime = property.getIntValue(1, 0);
-                    // 同じく
+                    this._delayAnimationTime.setTime(startTime);
+                    this._animationTime.setTime(endTime);
                 },
                 wait: (property) => {
                     let waitTime = property.getIntValue(0, 0);
@@ -172,24 +174,27 @@ module wwa_picture {
                     return new CircleAnimation(angle, speed, round);
                 },
                 anim_zoom: (property) => {
-                    let x = property.getIntValue(0);
-                    let y = property.getIntValue(1);
+                    let x = property.getIntValue(0, 0);
+                    let y = property.getIntValue(1, 0);
                     return new Zoom(x, y);
                 },
                 accel_zoom: (property) => {
                     // TODO: Zoom の加速設定を実装する
+                    return null;
                 },
                 anim_rotate: (property) => {
                     return new Rotate(property.getIntValue(0, 0));
                 },
                 accel_rotate: (property) => {
                     // TODO: Rotate の加速設定を実装する
+                    return null;
                 },
                 anim_fade: (property) => {
                     return new Fade(property.getFloatValue(0, 1.0));
                 },
                 accel_fade: (property) => {
                     // TODO: Fade の快速設定を実装する
+                    return null;
                 }
             };
 
@@ -198,7 +203,7 @@ module wwa_picture {
             if (property.macroName in propertyTable) {
                 propertyTable[property.macroName](property);
             } else if (property.macroName in animationTable) {
-                this._animations.push(animationTable[property.macroName](property));
+                this._animations[property.macroName] = animationTable[property.macroName](property);
             }
         }
 
@@ -207,7 +212,7 @@ module wwa_picture {
          */
         public update() {
             for (let animationType in this._animations) {
-                this._animations[animationType].update();
+                this._animations[animationType].update(this);
             }
         }
 
@@ -216,7 +221,7 @@ module wwa_picture {
          */
         public disp() {
             this._animationTime.start();
-            this._waitTime.start();
+            // this._waitTime.start();
             this._parentWWA.playSound(this._soundNumber);
         }
 
@@ -227,18 +232,28 @@ module wwa_picture {
             this._displayTime.start();
             this._animationTime.start();
         }
+
+        /**
+         * ピクチャのアニメーション動作を開始します。
+         */
         public startAnimation() {
             if (this._animationIntervalID === null) {
                 this._animationIntervalID = setInterval(this.update, 10, this);
             }
         }
+
         /**
          * ピクチャのタイマーを止めます。
          */
         public stop() {
+
             this._displayTime.stop();
             this._animationTime.stop();
         }
+
+        /**
+         * ピクチャのアニメーション動作を終了します。
+         */
         public stopAnimation() {
             if (this._animationIntervalID !== null) {
                 clearInterval(this._animationIntervalID);
@@ -250,7 +265,7 @@ module wwa_picture {
          * @todo 実装する
          */
         public appearParts(appearPartsPointer: wwa_data.PartsPonterWithStringPos) {
-
+            this._parentWWA.appearPartsEval(this._triggerParts.pos, appearPartsPointer.x, appearPartsPointer.y, appearPartsPointer.type, appearPartsPointer.ID);
         }
 
         /**
@@ -297,16 +312,19 @@ module wwa_picture {
             this._opacity.value += value;
         }
 
-        get imageCrop(): wwa_data.Coord {
+        get pos(): wwa_data.Coord {
+            return this._pos;
+        }
+        get size(): wwa_data.Coord {
+            return this._size;
+        }
+        get cropPos(): wwa_data.Coord {
             if (this._secondImgCropX !== 0 || this._secondImgCropY !== 0) {
                 return Picture.isPrimaryAnimationTime
-                    ? new wwa_data.Coord(this._imgCropX, this._imgCropY)
-                    : new wwa_data.Coord(this._secondImgCropY, this._secondImgCropY);
+                    ? new wwa_data.Coord(WWAConsts.CHIP_SIZE * this._imgCropX, WWAConsts.CHIP_SIZE * this._imgCropY)
+                    : new wwa_data.Coord(WWAConsts.CHIP_SIZE * this._secondImgCropY, WWAConsts.CHIP_SIZE * this._secondImgCropY);
             }
-            return new wwa_data.Coord(this._imgCropX, this._imgCropY);
-        }
-        get soundNumber(): number {
-            return this._soundNumber;
+            return new wwa_data.Coord(WWAConsts.CHIP_SIZE * this._imgCropX, WWAConsts.CHIP_SIZE * this._imgCropY);
         }
         get nextPictures() {
             // TODO: 実装する
@@ -323,14 +341,27 @@ module wwa_picture {
         get repeat(): wwa_data.Coord {
             return this._repeat;
         }
-        get cropSize(): wwa_data.Coord {
-            return this._imgCropSize;
+        // TODO: 実装する(もしくは必要か考える)
+        get shift(): wwa_data.Coord {
+            return null;
+        }
+        get cropSizeX(): number {
+            return WWAConsts.CHIP_SIZE * this._imgCropSize.x;
+        }
+        get cropSizeY(): number {
+            return WWAConsts.CHIP_SIZE * this._imgCropSize.y;
         }
         get interval(): wwa_data.Coord {
             return this._repeatInterval;
         }
         get chipSize(): wwa_data.Coord {
             return new wwa_data.Coord(this._size.x + this._repeatInterval.x, this._size.y + this._repeatInterval.y);
+        }
+        get angle(): number {
+            return this._angle.value;
+        }
+        get opacity(): number {
+            return this._opacity.value;
         }
         get text(): string {
             return this._displayText;
@@ -346,6 +377,10 @@ module wwa_picture {
         }
         get fillStyle(): string {
             return null;
+        }
+        // TODO: 実装する(もしくは必要か考える)
+        get isFill(): boolean {
+            return false;
         }
     }
 

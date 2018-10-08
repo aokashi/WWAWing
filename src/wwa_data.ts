@@ -429,16 +429,14 @@ module wwa_data {
          * @param self タイマー自身(setIntervalで呼び出した場合、thisの対象がwindowに移るため)
          */
         public update(self: Timer) {
-            self.tick();
-        }
-        public tick() {
-            if (this.checkTimeout()) {
-                this._timeout();
+            if (self.checkTimeout()) {
+                self._timeout();
             } else {
-                this._updateCallback();
-                this._time -= 10;
+                self._updateCallback();
+                self._time -= 10;
             }
         }
+
         private _timeout() {
             this.stop();
             this._isTimeout = true;
