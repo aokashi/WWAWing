@@ -116,7 +116,7 @@ module wwa_cgmanager {
 
     export class PictureManager extends CGManager {
 
-        public drawPictureData(picture: wwa_picture.Picture, isSub: boolean = false): void {
+        public drawPicture(picture: wwa_picture.Picture, isSub: boolean = false): void {
             var ctx = isSub ? this._ctxSub : this._ctx;
             ctx.save();
             if (picture.angle != 0) {
@@ -128,7 +128,6 @@ module wwa_cgmanager {
             }
             ctx.globalAlpha = picture.opacity;
             ctx.textAlign = picture.textAlign;
-            ctx.textBaseline = picture.textBaseline;
             
             ctx.font = picture.font;
             ctx.fillStyle = picture.fillStyle;

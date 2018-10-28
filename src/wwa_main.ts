@@ -136,7 +136,7 @@ module wwa_main {
         private _hasTitleImg: boolean;
   
         private _isActive: boolean;
-        private _pictureData: wwa_picture.PictureData;
+        private _pictures: wwa_picture.Picture[];
         private _pictureManager: wwa_cgmanager.PictureManager;
         ////////////////////////
         public debug: boolean;
@@ -219,7 +219,7 @@ module wwa_main {
                 this._wwaData.pictureTriggerPartsPosX = new Array(Consts.PICTURE_LENGTH);
                 this._wwaData.pictureTriggerPartsPosY = new Array(Consts.PICTURE_LENGTH);
                 this._wwaData.pictureTriggerPartsType = new Array(Consts.PICTURE_LENGTH);
-                this._pictureData = new wwa_picture.PictureData(this, Consts.PICTURE_LENGTH);
+                this._pictures = new Array(Consts.PICTURE_LENGTH);
                 for (var i = 0; i < Consts.PICTURE_LENGTH; i++) {
                     this._wwaData.pictureID[i] = 0;
                 }
@@ -1617,11 +1617,11 @@ module wwa_main {
                 if (partsID == 0) {
                     return;
                 }
-                var picture = this._pictureData.getPicture(id);
+                var picture = this._pictures[id];
                 wwa_picture.Picture.isPrimaryAnimationTime = this._isPrimaryAnimation();
-                if (picture.isVisible || picture.hasNoWaitTime) {
-                    this._pictureManager.drawPictureData(picture, true);
-                }
+                // TODO: drawPicture の条件って必要？
+                this._pictureManager.drawPicture(picture, true);
+
                 if (picture.isTimeout) {
                     for (let nextPicture of picture.nextPictures) {
                         // TODO: 相対値に対応する
@@ -2380,7 +2380,9 @@ module wwa_main {
                         this._camera.getPosition()
                         );
                     this._player.setMessageWaiting();
-                    this._pictureData.stop();
+                    this._pictures.forEach((picture) => {
+                        picture.stop();
+                    });
                     return true;
                 } else {
                     if (this._messageQueue.length === 0) {
@@ -3474,7 +3476,9 @@ module wwa_main {
                     this._mouseStore.clear();
                 }
                 this._player.clearMessageWaiting();
-                this._pictureData.start();
+                this._pictures.forEach((picture) => {
+                    picture.start();
+                });
             } else {
                 this.setMessageQueue(
                     this.getMessageById(mesID),
@@ -3734,6 +3738,7 @@ module wwa_main {
          * @param triggerPartsPos 呼び出し元のパーツ位置
          * @param autoStart 作成時と同時にパーツのタイマー処理を走らせるか
          * @returns 作成したピクチャのインスタンス
+         * @todo wwa_data がある程度整ったらこの関数の引数を整理する(特に呼び出し元パーツ周り)
          */
         public createPicture(
         partsID: number, id: number,
@@ -3751,9 +3756,10 @@ module wwa_main {
                 lines.splice(0, 1);
             }
             var picture = new wwa_picture.Picture(
-                this._pictureData,
-                { number: partsID, id: id },
-                { ID: triggerPartsID, type: triggerPartsType, pos: triggerPartsPos },
+                this,
+                triggerPartsID,
+                triggerPartsType,
+                triggerPartsPos,
                 this.getObjectCropXById(partsID) / Consts.CHIP_SIZE,
                 this.getObjectCropYById(partsID) / Consts.CHIP_SIZE,
                 this.getObjectCropXById(partsID, true) / Consts.CHIP_SIZE,
@@ -3763,13 +3769,14 @@ module wwa_main {
                 lines,
                 autoStart
             );
-            this._pictureData.setPicture(picture, id);
+            this._pictures[id] = picture;
             this._wwaData.pictureID[id] = partsID;
             this._wwaData.pictureTriggerPartsID[id] = triggerPartsID;
             this._wwaData.pictureTriggerPartsType[id] = triggerPartsType === wwa_data.PartsType.MAP ? true : false;
             this._wwaData.pictureTriggerPartsPosX[id] = triggerPartsPos.x;
             this._wwaData.pictureTriggerPartsPosY[id] = triggerPartsPos.y;
             console.log(picture);
+            
             return picture;
         }
 
@@ -3790,21 +3797,9 @@ module wwa_main {
             }
         }
 
-        public startPictureWaiting(picture: wwa_picture.Picture) {
-            if (picture.isSetWait) {
-                this._player.setPictureWaiting();
-            }
-        }
-        
-        public stopPictureWaiting(picture: wwa_picture.Picture) {
-            if (picture.isSetWait) {
-                this._player.clearPictureWaiting();
-            }
-        }
-
         public removePicture(id: number) {
             this._wwaData.pictureID[id] = 0;
-            this._pictureData.removePicture(id);
+            this._pictures[id] = null;
         }
 
         public showMonsterWindow(): void {

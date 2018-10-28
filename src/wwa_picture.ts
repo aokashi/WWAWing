@@ -5,17 +5,16 @@ module wwa_picture {
     import Consts = wwa_data.WWAConsts;
     import StringMacro = wwa_data.StringMacro;
     import WWAConsts = wwa_data.WWAConsts;
-    const AlignTable: Array<string> = [
-        "start",
-        "center",
-        "end"
-    ];
-    const BaselineTable: Array<string> = [
-        "top",
-        "middle",
-        "alphabetic",
-        "bottom"
-    ];
+    
+    /**
+     * テキストのセンタリング番号とセンタリングで使う文字列との対応を表した連想配列です。
+     */
+    const AlignTable: {[key: string]: CanvasTextAlign} = {
+        0: "start",
+        1: "center",
+        2: "end"
+    };
+
     export class Picture {
         public static isPrimaryAnimationTime: boolean = true;
 
@@ -34,17 +33,20 @@ module wwa_picture {
         private _delayAnimationTime: wwa_data.Timer;
         private _animationTime: wwa_data.Timer;
         private _displayText: string;
+        private _displayTextAlign: number;
         private _displayTextFont: string;
         private _displayTextColor: wwa_data.Color;
 
         private _animations: { [key: string]: Animation };
 
         // 内部制御用
-        private _animationIntervalID: NodeJS.Timer | null;
+        private _animationIntervalID: number | null;
 
         /**
          * @param _parentWWA ピクチャを格納するピクチャデータ
-         * @param _triggerParts 呼び出し元のパーツ(番号と種類、位置)
+         * @param _triggerPartsID 呼び出し元のパーツ番号
+         * @param _triggerPartsType 呼び出し元のパーツ種類
+         * @param _triggerPartsPos 呼び出し元のパーツ位置
          * @param _imgCropX イメージの参照先のX座標です。
          * @param _imgCropY イメージの参照先のY座標です。
          * @param _secondImgCropX イメージの第2参照先のX座標で、アニメーションが設定されている場合に使います。
@@ -56,7 +58,9 @@ module wwa_picture {
          */
         constructor(
             private _parentWWA: wwa_main.WWA,
-            private _triggerParts: wwa_data.PartsPointer,
+            private _triggerPartsID: number,
+            private _triggerPartsType: wwa_data.PartsType,
+            private _triggerPartsPos: wwa_data.Coord,
             private _imgCropX: number,
             private _imgCropY: number,
             private _secondImgCropX: number,
@@ -101,13 +105,13 @@ module wwa_picture {
                 },
                 time: (property) => {
                     let time = property.getIntValue(0, 0);
-                    this._displayTime.time = time;
+                    this._displayTime.setTime(time);
                 },
                 time_anim: (property) => {
                     let startTime = property.getIntValue(0, 0);
                     let endTime = property.getIntValue(1, 0);
-                    this._delayAnimationTime.time = startTime;
-                    this._animationTime.time = endTime;
+                    this._delayAnimationTime.setTime(startTime);
+                    this._animationTime.setTime(endTime);
                 },
                 wait: (property) => {
                     let waitTime = property.getIntValue(0, 0);
@@ -138,9 +142,11 @@ module wwa_picture {
                 },
                 text: (property) => {
                     this._displayText = property.getStringValue(0, "");
-                    // TODO: 下記代入方法を考える
-                    // this._displayTextAlign = property.getIntValue(1, );
-                    // this._displayTextBaseline = property.getIntValue)2, );
+                    let alignNumber = property.getIntValue(1, 0);
+                    if (alignNumber < 0 || alignNumber >= Object.keys(AlignTable).length) {
+                        throw new Error("テキストのセンタリング番号が定義外です");
+                    }
+                    this._displayTextAlign = alignNumber;
                 },
                 text_var: (property) => {
                     // WWAWing XEが搭載されたら実装します
@@ -246,7 +252,6 @@ module wwa_picture {
          * ピクチャのタイマーを止めます。
          */
         public stop() {
-
             this._displayTime.stop();
             this._animationTime.stop();
         }
@@ -261,11 +266,14 @@ module wwa_picture {
         }
         /**
          * パーツを出現します。
-         * @param appearPartsPointer
+         * @param partsID
+         * @param partsType
+         * @param partsPos
          * @todo 実装する
          */
-        public appearParts(appearPartsPointer: wwa_data.PartsPonterWithStringPos) {
-            this._parentWWA.appearPartsEval(this._triggerParts.pos, appearPartsPointer.x, appearPartsPointer.y, appearPartsPointer.type, appearPartsPointer.ID);
+        public appearParts(partsID: number, partsType: wwa_data.PartsType, partsPos: wwa_data.Coord) {
+            // TODO: toStringで誤魔化しているので相対指定に対応する
+            this._parentWWA.appearPartsEval(this._triggerPartsPos, partsPos.x.toString(), partsPos.y.toString(), partsType, partsID);
         }
 
         /**
@@ -312,6 +320,9 @@ module wwa_picture {
             this._opacity.value += value;
         }
 
+        get isTimeout(): boolean {
+            return false;
+        }
         get pos(): wwa_data.Coord {
             return this._pos;
         }
@@ -366,11 +377,8 @@ module wwa_picture {
         get text(): string {
             return this._displayText;
         }
-        get textAlign(): string {
-            return null;
-        }
-        get textBaseline(): string {
-            return null
+        get textAlign(): CanvasTextAlign {
+            return AlignTable[this._displayTextAlign];
         }
         get font(): string {
             return this._displayTextFont;

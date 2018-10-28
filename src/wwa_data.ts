@@ -396,7 +396,7 @@ module wwa_data {
 
     export class Timer {
         protected _time: number;
-        private _intervalID: NodeJS.Timer | null;
+        private _intervalID: number | null;
         private _updateCallback: () => void;
         private _timeoutCallback: () => void;
         /**
@@ -406,7 +406,7 @@ module wwa_data {
          * @param timeoutCallback タイムアウトした時に実行する処理
          */
         constructor(time: number, updateCallback: () => void = () => {}, timeoutCallback: () => void = () => {}) {
-            this.time = time;
+            this.setTime(time);
             this._updateCallback = updateCallback;
             this._timeoutCallback = timeoutCallback;
             this._intervalID = null;
@@ -452,11 +452,12 @@ module wwa_data {
         public checkTimeout(): boolean {
             return this._time <= 0;
         }
-
-        get enabled(): boolean {
-            return this._time > 0;
-        }
-        set time(time: number) {
+        /**
+         * 時間をセットします。
+         * (setter ではないのは継承元の setter が利用できない仕様上のため)
+         * @param time 時間
+         */
+        public setTime(time: number) {
             if (time < 0) {
                 throw new Error("タイマーの値が不正です。");
             }
@@ -464,6 +465,10 @@ module wwa_data {
             if (this._time % 10 != 0) {
                 throw new Error("タイマーは小数点第一位までの対応です。");
             }
+        }
+
+        get enabled(): boolean {
+            return this._time > 0;
         }
     }
 
@@ -481,13 +486,13 @@ module wwa_data {
             }
             return super.checkTimeout();
         }
+        public setTime(time: number) {
+            super.setTime(time);
+            this._hasNoTimeout = time === 0;
+        }
 
         get hasNoTimeout(): boolean {
             return this._hasNoTimeout;
-        }
-        set time(time: number) {
-            super.time = time;
-            this._hasNoTimeout = time === 0;
         }
     }
 
