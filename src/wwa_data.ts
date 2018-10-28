@@ -396,8 +396,7 @@ module wwa_data {
 
     export class Timer {
         protected _time: number;
-        private _intervalID: number;
-        private _isTimeout: boolean;
+        private _intervalID: NodeJS.Timer | null;
         private _updateCallback: () => void;
         private _timeoutCallback: () => void;
         /**
@@ -407,19 +406,18 @@ module wwa_data {
          * @param timeoutCallback タイムアウトした時に実行する処理
          */
         constructor(time: number, updateCallback: () => void = () => {}, timeoutCallback: () => void = () => {}) {
-            this.setTime(time);
+            this.time = time;
             this._updateCallback = updateCallback;
             this._timeoutCallback = timeoutCallback;
             this._intervalID = null;
-            this._isTimeout = false;
         }
         public start() {
-            if (this._intervalID == null) {
+            if (this._intervalID === null) {
                 this._intervalID = setInterval(this.update, 10, this);
             }
         }
         public stop() {
-            if (this._intervalID != null) {
+            if (this._intervalID !== null) {
                 clearInterval(this._intervalID);
                 this._intervalID = null;
             }
@@ -429,17 +427,22 @@ module wwa_data {
          * @param self タイマー自身(setIntervalで呼び出した場合、thisの対象がwindowに移るため)
          */
         public update(self: Timer) {
+            if (this._intervalID === null) {
+                return;
+            }
             if (self.checkTimeout()) {
                 self._timeout();
-            } else {
-                self._updateCallback();
-                self._time -= 10;
+                return;
             }
+            self._updateCallback();
+            self._time -= 10;
         }
 
+        /**
+         * タイムアウト処理を実行します。
+         */
         private _timeout() {
             this.stop();
-            this._isTimeout = true;
             this._timeoutCallback();
         }
         /**
@@ -449,11 +452,11 @@ module wwa_data {
         public checkTimeout(): boolean {
             return this._time <= 0;
         }
-        /**
-         * 時間を再設定します。
-         * @param time 時間の値
-         */
-        public setTime(time: number) {
+
+        get enabled(): boolean {
+            return this._time > 0;
+        }
+        set time(time: number) {
             if (time < 0) {
                 throw new Error("タイマーの値が不正です。");
             }
@@ -462,22 +465,12 @@ module wwa_data {
                 throw new Error("タイマーは小数点第一位までの対応です。");
             }
         }
-
-        get isTimeout(): boolean {
-            return this._isTimeout;
-        }
-        get enabled(): boolean {
-            return this._time > 0 && !this._isTimeout;
-        }
     }
 
     export class NonFinishTimer extends Timer {
         private _hasNoTimeout: boolean;
         /**
          * 0 と指定した場合、タイムアウトが発生しないタイマーです。
-         * @param time 終了するまでのミリ秒
-         * @param updateCallback タイマーが進行している間に実行する処理
-         * @param timeoutCallback タイムアウトした時に実行する処理
          */
         constructor(time: number, updateCallback: () => void = () => {}, timeoutCallback: () => void = () => {}) {
             super(time, updateCallback, timeoutCallback);
@@ -488,50 +481,13 @@ module wwa_data {
             }
             return super.checkTimeout();
         }
-        public setTime(time: number) {
-            super.setTime(time);
-            if (time <= 0) {
-                this._hasNoTimeout = true;
-            } else {
-                this._hasNoTimeout = false;
-            }
-        }
+
         get hasNoTimeout(): boolean {
             return this._hasNoTimeout;
         }
-    }
-
-    export class TimerArea {
-        protected _beginTime: wwa_data.Timer;
-        protected _endTime: wwa_data.NonFinishTimer;
-        /**
-         * 開始と終了の範囲が定まったタイマーです。
-         * @param beginTime 開始してから endTime が始まるまでの時間
-         * @param endTime 開始してから終了するまでの時間
-         * @param update endTime が進行している間に進む時間
-         * @param beginTimeout 開始のタイマーが終了した際に実行する関数
-         * @param endTimeout 終了のタイマーが終了した際に実行する関数
-         */
-        constructor(beginTime: number, endTime: number, update: () => void, beginTimeout: () => void = () => {}, endTimeout: () => void = () => {}) {
-            this._beginTime = new wwa_data.Timer(beginTime, () => {}, beginTimeout);
-            this._endTime = new wwa_data.NonFinishTimer(endTime, update, endTimeout);
-        }
-        public start() {
-            if (!this._beginTime.isTimeout) {
-                this._beginTime.start();
-            } else if (!this._endTime.isTimeout) {
-                this._endTime.start();
-            }
-        }
-        public stop() {
-            if (!this._beginTime.isTimeout) {
-                this._beginTime.stop();
-            } else if (!this._endTime.isTimeout) {
-                this._endTime.stop();
-            }
-        }
-        get isTimeout(): boolean {
-            return this._endTime.isTimeout;
+        set time(time: number) {
+            super.time = time;
+            this._hasNoTimeout = time === 0;
         }
     }
 

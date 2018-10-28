@@ -40,7 +40,7 @@ module wwa_picture {
         private _animations: { [key: string]: Animation };
 
         // 内部制御用
-        private _animationIntervalID: number;
+        private _animationIntervalID: NodeJS.Timer | null;
 
         /**
          * @param _parentWWA ピクチャを格納するピクチャデータ
@@ -80,7 +80,7 @@ module wwa_picture {
             this._animationIntervalID = null;
 
             message.forEach((line) => {
-                this._createPicture(line);
+                this._setProperty(line);
             }, this);
 
             if (autoStart) {
@@ -93,7 +93,7 @@ module wwa_picture {
          * @param {string} propertyString プロパティを表記した一行分の文字列
          * @private
          */
-        private _createPicture(propertyString: string) {
+        private _setProperty(propertyString: string) {
             let propertyTable: { [key: string]: (property: StringMacro) => void } = {
                 pos: (property) => {
                     this._pos.x = property.getIntValue(0, 0);
@@ -101,13 +101,13 @@ module wwa_picture {
                 },
                 time: (property) => {
                     let time = property.getIntValue(0, 0);
-                    this._displayTime.setTime(time);
+                    this._displayTime.time = time;
                 },
                 time_anim: (property) => {
                     let startTime = property.getIntValue(0, 0);
                     let endTime = property.getIntValue(1, 0);
-                    this._delayAnimationTime.setTime(startTime);
-                    this._animationTime.setTime(endTime);
+                    this._delayAnimationTime.time = startTime;
+                    this._animationTime.time = endTime;
                 },
                 wait: (property) => {
                     let waitTime = property.getIntValue(0, 0);
