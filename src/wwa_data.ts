@@ -600,15 +600,15 @@ module wwa_data {
         public constructor(macroString: string, needDollar: boolean = true) {
             let macro;
             if (needDollar) {
-                macro = macroString.match(/^\$([a-zA-Z_][a-zA-Z0-9_]*)=(.*)$/)
+                macro = macroString.match(/^\$([a-zA-Z0-9_]*)=(.*)$/)
             } else {
-                macro = macroString.match(/^([a-zA-Z_][a-zA-Z0-9_]*)=(.*)/);
+                macro = macroString.match(/^([a-zA-Z0-9_]*)=(.*)$/);
             }
-            if (macro === null || macro.length !== 3 || macro[1] !== '=') {
+            if (macro === null || macro.length !== 3) {
                 throw new Error("マクロ文またはプロパティの表記になっていません");
             }
 
-            this._macroName = macro[0];
+            this._macroName = macro[1];
             this._macroProperties = macro[2].match(/"[^"]*"|[^,]+/g);
         }
 
@@ -619,7 +619,7 @@ module wwa_data {
          * @private
          */
         private _checkPropertyLength(argIndex: number) {
-            return argIndex > this._macroProperties.length;
+            return argIndex < this._macroProperties.length;
         }
 
         /**

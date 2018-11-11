@@ -111,26 +111,27 @@ module wwa_cgmanager {
             this._fileName = fileName;
             this._loadCompleteCallBack = loadCompleteCallBack;
             this._load();
-        } 
+        }
     }
 
     export class PictureManager extends CGManager {
 
         public drawPicture(picture: wwa_picture.Picture, isSub: boolean = false): void {
-            var ctx = isSub ? this._ctxSub : this._ctx;
+            const ctx = isSub ? this._ctxSub : this._ctx;
+
             ctx.save();
-            if (picture.angle != 0) {
-                let translateX = picture.pos.x + (picture.width / 2);
-                let translateY = picture.pos.y + (picture.height / 2);
+            if (picture.angle !== 0) {
+                const translateX = picture.pos.x + (picture.width / 2);
+                const translateY = picture.pos.y + (picture.height / 2);
                 ctx.translate(translateX, translateY);
                 ctx.rotate(picture.angle);
                 ctx.translate(-translateX, -translateY);
             }
             ctx.globalAlpha = picture.opacity;
-            ctx.textAlign = picture.textAlign;
+            ctx.textAlign = picture.textAlign; // ←VSCode で扱うとエラーになるけど許して
             
             ctx.font = picture.font;
-            ctx.fillStyle = picture.fillStyle;
+            ctx.fillStyle = picture.fontFillStyle;
             if (!this._isLoaded) {
                 throw new Error("No image was loaded.");
             }
@@ -139,34 +140,37 @@ module wwa_cgmanager {
         }
 
         public drawCanvasWithPicture(picture: wwa_picture.Picture, isSub: boolean = false): void {
-            var ctx = isSub ? this._ctxSub : this._ctx;
-            var posX = picture.isFill ? ( picture.pos.x % picture.chipSize.x ) - picture.chipSize.x : picture.pos.x;
-            var posY = picture.isFill ? ( picture.pos.y % picture.chipSize.y ) - picture.chipSize.y : picture.pos.y;
-            var beginX = posX;
-            var beginY = posY;
+            const ctx = isSub ? this._ctxSub : this._ctx;
+
+            let posX = picture.isFill ? picture.fillStartPosX : picture.pos.x;
+            let posY = picture.isFill ? picture.fillStartPosY : picture.pos.y;
+            let beginX = posX;
+            let beginY = posY;
 
             for (var y = 0; y < picture.repeat.y; y++) {
                 for (var x = 0; x < picture.repeat.x; x++) {
                     ctx.drawImage(
                         this.getImage(),
-                        picture.cropPos.x,
-                        picture.cropPos.y,
+                        picture.cropPosX,
+                        picture.cropPosY,
                         picture.cropSizeX,
                         picture.cropSizeY,
                         posX,
                         posY,
-                        picture.size.x,
-                        picture.size.y
+                        picture.sizeX,
+                        picture.sizeY
                     );
-                    posX += picture.chipSize.x;
+                    posX += picture.chipSizeX;
                     posY += picture.shift.y;
                 }
-                beginY += picture.chipSize.y;
+                beginY += picture.chipSizeY;
                 posY = beginY;
                 beginX += picture.shift.x;
                 posX = beginX;
             }
-            ctx.fillText(picture.text, picture.pos.x, picture.pos.y);
+            if (picture.text !== null) {
+                ctx.fillText(picture.text, picture.pos.x, picture.pos.y);
+            }
         }
         
         public constructor(ctx: CanvasRenderingContext2D, ctxSub: CanvasRenderingContext2D, fileName: string, loadCompleteCallBack: () => void) {

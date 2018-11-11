@@ -85,7 +85,7 @@ module wwa_message {
                 }
 
             } catch (e) {
-                // throw new Error(e.message);
+                throw new Error(e.message);
                 // デベロッパーモードならエラーを吐くとかしたいね
             }
         }

@@ -1617,7 +1617,7 @@ module wwa_main {
                 if (partsID == 0) {
                     return;
                 }
-                var picture = this._pictures[id];
+                const picture = this._pictures[id];
                 wwa_picture.Picture.isPrimaryAnimationTime = this._isPrimaryAnimation();
                 // TODO: drawPicture の条件って必要？
                 this._pictureManager.drawPicture(picture, true);
