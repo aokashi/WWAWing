@@ -2380,9 +2380,7 @@ module wwa_main {
                         this._camera.getPosition()
                         );
                     this._player.setMessageWaiting();
-                    this._pictures.forEach((picture) => {
-                        picture.stop();
-                    });
+                    this._stopPictures();
                     return true;
                 } else {
                     if (this._messageQueue.length === 0) {
@@ -3350,6 +3348,15 @@ module wwa_main {
                     return;
                 }
                 picture.start();
+            });
+        }
+
+        private _stopPictures(): void {
+            this._pictures.forEach((picture) => {
+                if (picture === null) {
+                    return;
+                }
+                picture.stop();
             });
         }
 
