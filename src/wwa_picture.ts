@@ -14,6 +14,8 @@ module wwa_picture {
         1: "center",
         2: "end"
     };
+    const FONT_DEFAULT_SIZE = 16;
+    const FONT_DEFAULT_FAMILY = "sans-serif";
 
     export class Picture {
         public static isPrimaryAnimationTime: boolean = true;
@@ -36,6 +38,9 @@ module wwa_picture {
         private _animationTime: wwa_data.Timer;
         private _displayText: null|string;
         private _displayTextAlign: number;
+        private _displayTextSize: number;
+        private _displayTextBoldMode: boolean;
+        private _displayTextItalicMode: boolean;
         private _displayTextFont: null|string;
         private _displayTextColor: wwa_data.Color;
 
@@ -89,6 +94,9 @@ module wwa_picture {
             this._animationTime = new wwa_data.Timer(0);
             this._displayText = null;
             this._displayTextAlign = 0;
+            this._displayTextSize = FONT_DEFAULT_SIZE;
+            this._displayTextBoldMode = false;
+            this._displayTextItalicMode = false;
             this._displayTextFont = null;
             this._displayTextColor = new wwa_data.Color(0, 0, 0);
 
@@ -152,7 +160,7 @@ module wwa_picture {
                     this._repeatShift.y = property.getIntValue(3, 0);
                 },
                 fill: (property) => {
-                    this._fillMode = true;
+                    this._fillMode = property.getBooleanValue(0, false);
                 },
                 angle: (property) => {
                     this._angle.value = property.getIntValue(0, 0);
@@ -172,11 +180,14 @@ module wwa_picture {
                     // WWAWing XEが搭載されたら実装します
                 },
                 font: (property) => {
-                    // TODO: 下記代入方法を考える
-                    // this._displayTextSize = property.getIntValue(0, );
-                    // this._displayTextWeight = property.getBooleanValue(1, );
-                    // this._displayTextItalic = property.getBooleanValue(2, );
-                    // this._displayTextFont = property.getStringValue(3, );
+                    let fontSize = property.getIntValue(0, FONT_DEFAULT_SIZE);
+                    if (fontSize <= 0) {
+                        throw new Error("フォントサイズの指定が不正です");
+                    }
+                    this._displayTextSize = fontSize;
+                    this._displayTextBoldMode = property.getBooleanValue(1, false);
+                    this._displayTextItalicMode = property.getBooleanValue(2, false);
+                    this._displayTextFont = property.getStringValue(3, "");
                 },
                 color: (property) => {
                     let r = property.getIntValue(0, 0);
@@ -451,10 +462,13 @@ module wwa_picture {
             return AlignTable[this._displayTextAlign];
         }
         get font(): string {
-            return this._displayTextFont !== null ? this._displayTextFont : "";
+            const style = this._displayTextItalicMode ? "italic" : "normal";
+            const weight = this._displayTextBoldMode ? "bold" : "normal";
+            const font = this._displayTextFont === null ? FONT_DEFAULT_FAMILY : `'${this._displayTextFont}'`;
+            return `${style} ${weight} ${this._displayTextSize}px ${font}`;
         }
-        get fontFillStyle(): string {
-            return "";
+        get fillStyle(): string {
+            return this._displayTextColor.cssColorValue;
         }
     }
 

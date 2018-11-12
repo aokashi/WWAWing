@@ -3340,6 +3340,19 @@ module wwa_main {
 
         }
 
+        /**
+         * ピクチャを開始します。
+         * 近いうちに、ピクチャ複数をまとめるクラスを設置し、そのクラスで実行できるようにします。
+         */
+        private _startPictures(): void {
+            this._pictures.forEach((picture) => {
+                if (picture === null) {
+                    return;
+                }
+                picture.start();
+            });
+        }
+
         public launchBattleEstimateWindow(): boolean {
             var cpParts = this._camera.getPosition().getPartsCoord();
             var xLeft = Math.max(0, cpParts.x);
@@ -3476,9 +3489,7 @@ module wwa_main {
                     this._mouseStore.clear();
                 }
                 this._player.clearMessageWaiting();
-                this._pictures.forEach((picture) => {
-                    picture.start();
-                });
+                this._startPictures();
             } else {
                 this.setMessageQueue(
                     this.getMessageById(mesID),

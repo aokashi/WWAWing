@@ -131,7 +131,7 @@ module wwa_cgmanager {
             ctx.textAlign = picture.textAlign; // ←VSCode で扱うとエラーになるけど許して
             
             ctx.font = picture.font;
-            ctx.fillStyle = picture.fontFillStyle;
+            ctx.fillStyle = picture.fillStyle;
             if (!this._isLoaded) {
                 throw new Error("No image was loaded.");
             }
