@@ -204,12 +204,6 @@ module wwa_picture {
                     let y = property.getIntValue(1, 0);
                     return new StraightAnimation(x, y);
                 },
-                anim_circle: (property) => {
-                    let angle = property.getIntValue(0, 0);
-                    let speed = property.getIntValue(1, 0);
-                    let round = property.getIntValue(2, 0);
-                    return new CircleAnimation(angle, speed, round);
-                },
                 anim_zoom: (property) => {
                     let x = property.getIntValue(0, 0);
                     let y = property.getIntValue(1, 0);
@@ -234,6 +228,16 @@ module wwa_picture {
                     return null;
                 }
             };
+
+            const cloneTable: { [key: string]: (property: StringMacro) => Clone } = {
+                clone_circle: (property) => {
+                    const count = property.getIntValue(0, 1);
+                    const angle = property.getIntValue(1, 0);
+                    const round = property.getIntValue(2, 0);
+
+                    return new CircleClone(count, angle, round);
+                }
+            }
 
             const property = new StringMacro(propertyString, false);
 
@@ -471,6 +475,15 @@ module wwa_picture {
             return this._displayTextColor.cssColorValue;
         }
     }
+    /**
+     * ピクチャの位置とサイズを表記したものです。
+     */
+    interface PictureData {
+        x: number,
+        y: number,
+        w: number,
+        h: number
+    }
 
     interface Animation {
         update(parent: Picture);
@@ -495,45 +508,6 @@ module wwa_picture {
         public accel() {
             this.x += this._accel.x;
             this.y += this._accel.y;
-        }
-    }
-    class CircleAnimation implements Animation {
-        private _parent: Picture;
-        private _size: wwa_data.Coord;
-        private _speed: wwa_data.Angle;
-        private _angle: wwa_data.Angle;
-        private _round: number;
-        private _accel: {
-            angle: wwa_data.Angle,
-            round: number
-        };
-        /**
-         * 円を描くアニメーションです。
-         * @param width 円を描く横幅
-         * @param height 円を描く縦幅
-         * @param speed 1フレームに動かす角度
-         * @param angle 最初の角度
-         */
-        constructor(width: number = 0, height: number = 0, angle: number = 0.0, speed: number = 0.0) {
-            this._size = new wwa_data.Coord(width, height);
-            this._speed = new wwa_data.Angle(speed);
-            this._angle = new wwa_data.Angle(angle);
-            this._accel = {
-                angle: new wwa_data.Angle(0),
-                round: 0
-            };
-        }
-        public update(parent: Picture) {
-            let x = Math.floor((Math.cos(this._angle.rad) * this._round));
-            let y = Math.floor((Math.sin(this._angle.rad) * this._round));
-            // TODO: basePos 辺りが実装できるようにする
-            // parent.jump(x + this._parent.basePos.x, y + this._parent.basePos.y);
-            this._angle.rotate(this._speed.degree);
-            this.accel();
-        }
-        public accel() {
-            this._speed.rotate(this._accel.angle.degree);
-            this._round += this._accel.round;
         }
     }
     class Zoom extends wwa_data.Coord implements Animation {
@@ -585,6 +559,49 @@ module wwa_picture {
         }
         public accel() {
             this.value += this._accel.value;
+        }
+    }
+
+    /**
+     * クローニングです。複数の PictureData が返せるupdateメソッドが備わっています。
+     */
+    interface Clone {
+        update(): [PictureData];
+    }
+    class CircleClone implements Clone {
+        private _count: number;
+        private _angle: wwa_data.Angle;
+        private _round: number;
+        private _speedAngle: wwa_data.Angle;
+        private _speedRound: number;
+        /**
+         * 円状にものを配置し、回すことのできるクローニングです。
+         * @param count 個数
+         * @param angle 向き
+         * @param round 半径
+         */
+        constructor(count: number = 1, angle: number = 0, round: number = 0) {
+            this._count = count;
+            this._angle = new wwa_data.Angle(angle);
+            this._round = round;
+            
+            this._speedAngle = new wwa_data.Angle(0);
+            this._speedRound = 0;
+        }
+        public setSpeed(angle: number, round: number) {
+            this._speedAngle.value = angle;
+            this._speedRound = round;
+        }
+        update(): [PictureData] {
+            // TODO: 複数個対応にする
+            let x = Math.floor((Math.cos(this._angle.rad) * this._round));
+            let y = Math.floor((Math.sin(this._angle.rad) * this._round));
+            return [{
+                x: x,
+                y: y,
+                w: 1,
+                h: 1
+            }];
         }
     }
 }
