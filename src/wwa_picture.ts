@@ -45,6 +45,8 @@ module wwa_picture {
         private _displayTextColor: wwa_data.Color;
 
         private _animations: { [key: string]: Animation };
+        private _cloner: null|Clone;
+        private _imageData: PictureData[];
 
         // 内部制御用
         private _animationIntervalID: number | null;
@@ -103,6 +105,9 @@ module wwa_picture {
             // アニメーション関係の初期化
             this._animations = {};
             this._animationIntervalID = null;
+
+            this._cloner = null;
+            this._imageData = [];
 
             message.forEach((line) => {
                 this._setProperty(line);
@@ -245,6 +250,8 @@ module wwa_picture {
                 propertyTable[property.macroName](property);
             } else if (property.macroName in animationTable) {
                 this._animations[property.macroName] = animationTable[property.macroName](property);
+            } else if (property.macroName in cloneTable) {
+                this._cloner = cloneTable[property.macroName](property);
             } else {
                 throw new Error("プロパティ " + property.macroName + " が見つかりません。");
             }
@@ -257,6 +264,10 @@ module wwa_picture {
             for (let animationType in this._animations) {
                 this._animations[animationType].update(this);
             }
+            if (this._cloner === null) {
+                return;
+            }
+            this._imageData = this._cloner.update();
         }
 
         /**
@@ -477,6 +488,7 @@ module wwa_picture {
     }
     /**
      * ピクチャの位置とサイズを表記したものです。
+     * @todo まともな名前にする
      */
     interface PictureData {
         x: number,
